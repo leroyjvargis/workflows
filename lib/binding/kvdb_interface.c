@@ -126,11 +126,11 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_params_get(ds, &mparams, NULL);
+    err = mpool_params_get(ds, &mparams);
     if (ev(err))
         goto errout;
 
@@ -162,7 +162,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
 
     memcpy(mparams.mp_utype, &hse_mpool_utype, sizeof(mparams.mp_utype));
 
-    err = mpool_params_set(ds, &mparams, NULL);
+    err = mpool_params_set(ds, &mparams);
     if (ev(err))
         goto errout;
 
@@ -216,7 +216,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -899,5 +899,4 @@ hse_err_to_errno(hse_err_t err)
 /* Includes necessary files for mocking */
 #if HSE_MOCKING
 #include "hse_ut_impl.i"
-#include "mpool_ut_impl.i"
 #endif /* HSE_MOCKING */
