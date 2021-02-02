@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
- */
-/*
- * Storage manager interface for HSE
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_MBLOCK_H
@@ -21,7 +18,7 @@ struct mblock_mmap;
 struct mblock_smap;
 struct mblock_fset;
 struct mblock_file;
-struct file_ops;
+struct io_ops;
 
 struct mblock_fset {
 	struct media_class     *mc;
@@ -46,7 +43,7 @@ mblock_fset_remove(struct mblock_fset *mfs);
 
 struct mblock_file {
 	struct mblock_fset     *fset;
-	struct file_ops        *fops;
+	struct io_ops          *io;
 
 	size_t                  maxsz;
 

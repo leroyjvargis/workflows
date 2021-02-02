@@ -1,18 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
- */
-/*
- * Storage manager interface for HSE
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_MDC_H
 #define MPOOL_MDC_H
 
-#include "io.h"
-
 struct media_class;
 struct mdc_file;
+struct io_ops;
 
 struct mdc {
 	struct mdc_file       *mf1;
@@ -34,7 +30,7 @@ struct mdc_file {
 	int                    fd;
 	char                   name[32];
 
-	struct file_ops       *fops;
+	struct io_ops         *io;
 };
 
 #endif /* MPOOL_MDC_H */
