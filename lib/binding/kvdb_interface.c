@@ -6,6 +6,7 @@
 #define MTF_MOCK_IMPL_hse
 
 #include <mpool/mpool.h>
+#include <mpool/mpool2.h>
 
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
@@ -126,7 +127,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &ds);
+    err = mpool_open2(mpool_name, params, &ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -169,7 +170,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_MAKE, tstart);
 
 errout:
-    mpool_close(ds);
+    mpool_close2(ds);
 
     return merr_to_hse_err(err);
 }
