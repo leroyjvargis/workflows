@@ -17,62 +17,60 @@
 #include <hse_util/event_counter.h>
 
 #include "mclass.h"
-#include "mblock.h"
+#include "mblock_file.h"
 
 merr_t
-mblock_file_open(struct mblock_fset *mfs, int dirfd, char *name, struct mblock_file **handle)
+mblock_file_open(struct mblock_fset *mbfsp, int dirfd, char *name, struct mblock_file **handle)
 {
-    struct mblock_file *mf;
+    struct mblock_file *mbfp;
 
     int fd, rc;
     merr_t err;
 
-    if (ev(!mfs || !name || !handle))
+    if (ev(!mbfsp || !name || !handle))
         return merr(EINVAL);
 
-    mf = calloc(1, sizeof(*mf));
-    if (ev(!mf))
+    mbfp = calloc(1, sizeof(*mbfp));
+    if (ev(!mbfp))
         return merr(ENOMEM);
 
-    mf->fset = mfs;
-    mf->maxsz = MBLOCK_FS_FSIZE_MAX;
-    strlcpy(mf->name, name, sizeof(mf->name));
+    mbfp->mbfsp = mbfsp;
+    mbfp->maxsz = MBLOCK_FILE_SIZE_MAX;
+    strlcpy(mbfp->name, name, sizeof(mbfp->name));
 
     fd = openat(dirfd, name, O_RDWR | O_DIRECT | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         err = merr(errno);
-        hse_elog(HSE_ERR "open/create data file failed, mclass dir %s, file name %s: @@e",
-                 err, mclass_dpath(mfs->mc), name);
+        hse_elog(HSE_ERR "open/create data file failed, file name %s: @@e", err, name);
         goto err_exit;
     }
 
     /* ftruncate to the maximum size to make it a sparse file */
-    rc = ftruncate(fd, MBLOCK_FS_FSIZE_MAX << 30);
+    rc = ftruncate(fd, MBLOCK_FILE_SIZE_MAX << 30);
     if (rc < 0) {
         err = merr(errno);
         close(fd);
-        hse_elog(HSE_ERR "Truncating data file failed, mclass dir %s: file name %s: @@e",
-                 err, mclass_dpath(mfs->mc), name);
+        hse_elog(HSE_ERR "Truncating data file failed, file name %s: @@e", err, name);
         goto err_exit;
     }
 
-    mf->fd = fd;
+    mbfp->fd = fd;
 
-    *handle = mf;
+    *handle = mbfp;
 
     return 0;
 
 err_exit:
-    free(mf);
+    free(mbfp);
 
     return err;
 }
 
 void
-mblock_file_close(struct mblock_file *mf)
+mblock_file_close(struct mblock_file *mbfp)
 {
-    if (!mf)
+    if (!mbfp)
         return;
 
-    close(mf->fd);
+    close(mbfp->fd);
 }

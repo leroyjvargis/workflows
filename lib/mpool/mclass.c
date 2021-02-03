@@ -17,7 +17,7 @@
 #include <hse_util/logging.h>
 
 #include "mclass.h"
-#include "mblock.h"
+#include "mblock_fset.h"
 
 static merr_t
 mclass_lockfile_acq(int dirfd)
@@ -59,9 +59,11 @@ mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct med
         return err;
     }
 
-    err = mclass_lockfile_acq(dirfd(dirp));
-    if (ev(err))
-        goto err_exit2;
+    if (mcid == MCID_CAPACITY) {
+        err = mclass_lockfile_acq(dirfd(dirp));
+        if (ev(err))
+            goto err_exit2;
+    }
 
     mc = calloc(1, sizeof(*mc));
     if (ev(!mc)) {
@@ -74,7 +76,7 @@ mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct med
 
     strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
 
-    err = mblock_fset_open(mc, &mc->fset);
+    err = mblock_fset_open(mc, &mc->mbfsp);
     if (err) {
         hse_elog(HSE_ERR "Opening data files failed, mcid %d: @@e", err, mcid);
         goto err_exit1;
@@ -99,9 +101,10 @@ mclass_close(struct media_class *mc)
     if (ev(!mc))
         return merr(EINVAL);
 
-    mblock_fset_close(mc->fset);
+    mblock_fset_close(mc->mbfsp);
 
-    mclass_lockfile_rel(dirfd(mc->dirp));
+    if (mc->mcid == MCID_CAPACITY)
+        mclass_lockfile_rel(dirfd(mc->dirp));
 
     closedir(mc->dirp);
 
@@ -116,9 +119,10 @@ mclass_destroy(struct media_class *mc)
     if (ev(!mc))
         return;
 
-    mblock_fset_remove(mc->fset);
+    mblock_fset_remove(mc->mbfsp);
 
-    mclass_lockfile_rel(dirfd(mc->dirp));
+    if (mc->mcid == MCID_CAPACITY)
+        mclass_lockfile_rel(dirfd(mc->dirp));
 
     closedir(mc->dirp);
 

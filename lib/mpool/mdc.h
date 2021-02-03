@@ -6,25 +6,32 @@
 #ifndef MPOOL_MDC_H
 #define MPOOL_MDC_H
 
+#include <hse_util/mutex.h>
+
 struct media_class;
 struct mdc_file;
 struct io_ops;
 
-struct mdc {
-	struct mdc_file       *mf1;
-	struct mdc_file       *mf2;
-
+struct mpool_mdc {
+	struct mutex           lock;
+	struct mdc_file       *mfp1;
+	struct mdc_file       *mfp2;
+	struct mdc_file       *mfpa;
 	struct media_class    *mc;
+
+	struct mpool          *mp;
 
 	uint64_t               magic;
 	int                    vers;
 };
 
 struct mdc_file {
-	struct mdc            *mdc;
+	struct mpool_mdc      *mdc;
 
 	int64_t                gen;
 	size_t                 size;
+
+	uint64_t               logid;
 
 	int                    dirfd;
 	int                    fd;
