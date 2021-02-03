@@ -24,7 +24,7 @@ mclass_lockfile_acq(int dirfd)
 {
     int fd;
 
-    fd = openat(dirfd, ".lockfile", O_CREAT | O_EXCL);
+    fd = openat(dirfd, ".lockfile", O_CREAT | O_EXCL | O_SYNC, S_IRUSR | S_IWUSR);
     if (ev(fd < 0)) {
         assert(errno == EEXIST);
         return merr(EBUSY);
@@ -127,6 +127,56 @@ mclass_destroy(struct media_class *mc)
     closedir(mc->dirp);
 
     free(mc);
+}
+
+merr_t
+mclass_params_set(struct media_class *mc, const char *key, const char *val, size_t len)
+{
+    int fd, dirfd;
+    ssize_t cc;
+    merr_t err=0;
+
+    dirfd = mclass_dirfd(mc);
+
+    fd = openat(dirfd, key, O_CREAT | O_RDWR | O_SYNC | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0)
+        return merr(errno);
+
+    cc = pwrite(fd, val, len, 0);
+    if (cc != len) {
+        err = merr(errno);
+        goto errout;
+    }
+
+errout:
+    close(fd);
+
+    return err;
+}
+
+merr_t
+mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len)
+{
+    int fd, dirfd;
+    ssize_t cc;
+    merr_t err=0;
+
+    dirfd = mclass_dirfd(mc);
+
+    fd = openat(dirfd, key, O_RDONLY);
+    if (fd < 0)
+        return merr(errno);
+
+    cc = pread(fd, val, len, 0);
+    if (cc < 0) {
+        err = merr(errno);
+        goto errout;
+    }
+
+errout:
+    close(fd);
+
+    return err;
 }
 
 int

@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <uuid/uuid.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
@@ -11,8 +12,11 @@
 #include <hse_util/string.h>
 
 #include <hse/hse.h>
+#include <mpool/mpool_internal.h>
 
 #include "mpool.h"
+
+#define UUID_STRLEN    36
 
 merr_t
 mpool_open2(const char *name, const struct hse_params *params, struct mpool **handle)
@@ -93,6 +97,39 @@ mpool_destroy2(struct mpool *mp)
         mclass_destroy(mp->mc[i]);
 
     free(mp);
+
+    return 0;
+}
+
+merr_t
+mpool_params_get2(struct mpool *mp, struct mpool_params *params)
+{
+    char ubuf[UUID_STRLEN + 1];
+    merr_t err;
+
+    memset(params, 0, sizeof(*params));
+
+    /* Fill utype if present. */
+    err = mclass_params_get(mp->mc[MCID_CAPACITY], "utype", (char *)ubuf, sizeof(ubuf) - 1);
+    if (!err) {
+        ubuf[UUID_STRLEN] = '\0';
+        uuid_parse((const char *)ubuf, params->mp_utype);
+    }
+
+    return 0;
+}
+
+merr_t
+mpool_params_set2(struct mpool *mp, struct mpool_params *params)
+{
+    if (!uuid_is_null(params->mp_utype)) {
+        char ubuf[UUID_STRLEN + 1];
+
+        uuid_unparse(params->mp_utype, ubuf);
+
+        return mclass_params_set(mp->mc[MCID_CAPACITY], "utype",
+                                 (const char *)ubuf, sizeof(ubuf) - 1);
+    }
 
     return 0;
 }

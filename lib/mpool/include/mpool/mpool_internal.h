@@ -11,7 +11,6 @@
 #include <uuid/uuid.h>
 #include <sys/uio.h>
 #include <sys/types.h>
-typedef uuid_t uuid_le;
 
 #define MPOOL_NAMESZ_MAX            64
 
@@ -51,7 +50,7 @@ enum mp_media_classp {
  * @mp_name:            mpool name (2x for planned expansion)
  */
 struct mpool_params {
-	uuid_le     mp_poolid;
+	uuid_t      mp_poolid;
 	uid_t       mp_uid;
 	gid_t       mp_gid;
 	mode_t      mp_mode;
@@ -71,7 +70,7 @@ struct mpool_params {
 	uint32_t    mp_rsvd2;
 	uint64_t    mp_rsvd3;
 	uint64_t    mp_rsvd4;
-	uuid_le     mp_utype;
+	uuid_t      mp_utype;
 	char        mp_name[MPOOL_NAMESZ_MAX * 2];
 };
 

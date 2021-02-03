@@ -131,7 +131,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_params_get(ds, &mparams);
+    err = mpool_params_get2(ds, &mparams);
     if (ev(err))
         goto errout;
 
@@ -163,7 +163,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
 
     memcpy(mparams.mp_utype, &hse_mpool_utype, sizeof(mparams.mp_utype));
 
-    err = mpool_params_set(ds, &mparams);
+    err = mpool_params_set2(ds, &mparams);
     if (ev(err))
         goto errout;
 
