@@ -11,6 +11,8 @@
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
 
+#include <mpool/mpool2.h>
+
 #define MTF_MOCK_IMPL_cndb
 #define MTF_MOCK_IMPL_cndb_internal
 
@@ -143,34 +145,31 @@ merr_t
 cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
     merr_t               err;
-    struct mdc_capacity  mdcap;
-    struct mdc_props     props = { 0 };
     enum mp_media_classp mclassp = MP_MED_STAGING;
     u64                  staging_absent;
+    size_t               capacity;
 
     if (captgt && *captgt)
-        mdcap.mdt_captgt = *captgt;
+        capacity = *captgt;
     else
-        mdcap.mdt_captgt = CNDB_CAPTGT_DEFAULT;
-
-    mdcap.mdt_spare = false;
+        capacity = CNDB_CAPTGT_DEFAULT;
 
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent)
         mclassp = MP_MED_CAPACITY;
 
-    err = mpool_mdc_alloc(ds, oid1_out, oid2_out, mclassp, &mdcap, &props);
+    err = mpool_mdc_alloc2(ds, CNDB_MAGIC, capacity, mclassp, oid1_out, oid2_out);
     if (ev(err)) {
         hse_elog(
             HSE_ERR "%s: cannot allocate cNDB MDC (%lld): @@e",
             err,
             __func__,
-            (long long int)mdcap.mdt_captgt);
+            (long long int)capacity);
         return err;
     }
 
     if (captgt)
-        *captgt = props.mdc_alloc_cap;
+        *captgt = capacity;
 
     return 0;
 }
@@ -186,7 +185,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 
     captgt = captgt ?: CNDB_CAPTGT_DEFAULT;
 
-    err = mpool_mdc_commit(ds, oid1, oid2);
+    err = mpool_mdc_commit2(ds, oid1, oid2);
     if (err) {
         hse_elog(
             HSE_ERR "%s: cannot commit cNDB MDC (%lld): @@e", err, __func__, (long long int)captgt);
@@ -227,7 +226,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 errout:
     hse_elog(
         HSE_ERR "%s: MDC append (%lx, %lx) failed: @@e", err, __func__, (ulong)oid1, (ulong)oid2);
-    err2 = mpool_mdc_delete(ds, oid1, oid2);
+    err2 = mpool_mdc_delete2(ds, oid1, oid2);
     if (err2)
         hse_elog(
             HSE_ERR "%s: destroy (%lx,%lx) failed: @@e", err2, __func__, (ulong)oid1, (ulong)oid2);

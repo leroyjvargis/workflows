@@ -133,3 +133,9 @@ mpool_params_set2(struct mpool *mp, struct mpool_params *params)
 
     return 0;
 }
+
+struct media_class *
+mpool_mchdl_get(struct mpool *mp, enum mclass_id mcid)
+{
+    return mp->mc[mcid];
+}

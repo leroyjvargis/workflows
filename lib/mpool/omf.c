@@ -7,7 +7,6 @@
 #include <hse_util/hse_err.h>
 
 #include "omf.h"
-#include "mdc.h"
 
 merr_t
 omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf)
@@ -19,11 +18,11 @@ omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf)
     if (ev(lh->vers != MDC_LOGHDR_VERSION))
         return merr(EINVAL);
 
-    omf_set_lh_crc(lhomf, lh->crc);
     omf_set_lh_vers(lhomf, lh->vers);
     omf_set_lh_magic(lhomf, lh->magic);
     omf_set_lh_rsvd(lhomf, lh->rsvd);
     omf_set_lh_gen(lhomf, lh->gen);
+    omf_set_lh_crc(lhomf, lh->crc);
 
     return 0;
 }
@@ -35,11 +34,11 @@ omf_mdc_loghdr_unpack_letoh(struct mdc_loghdr *lh, const char *inbuf)
 
     lhomf = (struct mdc_loghdr_omf *)inbuf;
 
-    lh->crc = omf_lh_crc(lhomf);
     lh->vers = omf_lh_vers(lhomf);
     lh->magic = omf_lh_magic(lhomf);
     lh->rsvd = omf_lh_rsvd(lhomf);
     lh->gen = omf_lh_gen(lhomf);
+    lh->crc = omf_lh_crc(lhomf);
 }
 
 void

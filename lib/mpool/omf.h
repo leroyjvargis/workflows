@@ -7,7 +7,9 @@
 #define MPOOL_OMF_H
 
 #include <hse_util/omf.h>
+#include <hse_util/hse_err.h>
 
+#include "mdc_file.h"
 
 /*
  * MDC OMF
@@ -17,19 +19,19 @@
 #define MDC_LOGHDR_VERSION ((u32)1)
 
 struct mdc_loghdr_omf {
-	__le32 lh_crc;
 	__le32 lh_vers;
 	__le32 lh_magic;
 	__le32 lh_rsvd;
 	__le64 lh_gen;
+	__le32 lh_crc;
 } __packed;
 
 /* Define set/get methods for mdc_loghdr_omf */
-OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
 OMF_SETGET(struct mdc_loghdr_omf, lh_vers, 32);
 OMF_SETGET(struct mdc_loghdr_omf, lh_magic, 32);
 OMF_SETGET(struct mdc_loghdr_omf, lh_rsvd, 32);
 OMF_SETGET(struct mdc_loghdr_omf, lh_gen, 64);
+OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
 
 
 struct mdc_rechdr_omf {
@@ -40,5 +42,17 @@ struct mdc_rechdr_omf {
 /* Define set/get methods for mdc_rechdr_omf */
 OMF_SETGET(struct mdc_rechdr_omf, rh_crc, 32);
 OMF_SETGET(struct mdc_rechdr_omf, rh_size, 32);
+
+merr_t
+omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf);
+
+void
+omf_mdc_loghdr_unpack_letoh(struct mdc_loghdr *lh, const char *inbuf);
+
+void
+omf_mdc_rechdr_pack_htole(struct mdc_rechdr *rh, char *outbuf);
+
+void
+omf_mdc_rechdr_unpack_letoh(struct mdc_rechdr *rh, const char *inbuf);
 
 #endif /* MPOOL_OMF_H */

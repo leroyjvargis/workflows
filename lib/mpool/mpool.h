@@ -26,7 +26,10 @@ struct mpool {
 	struct mdc         *mdc_root;
 
 	char                name[64];
-};
+}
+;
+struct media_class *
+mpool_mchdl_get(struct mpool *mp, enum mclass_id mcid);
 
 #endif /* MPOOL_H */
 

@@ -25,33 +25,4 @@ struct mpool_mdc {
 	int                    vers;
 };
 
-struct mdc_loghdr {
-	uint32_t              crc;
-	uint32_t              vers;
-	uint32_t              magic;
-	uint32_t              rsvd;
-	uint64_t              gen;
-};
-
-struct mdc_file {
-	struct mpool_mdc      *mdc;
-
-	struct mdc_loghdr      lh;
-	size_t                 size;
-
-	uint64_t               logid;
-
-	int                    dirfd;
-	int                    fd;
-	char                   name[32];
-
-	struct io_ops         *io;
-};
-
-struct mdc_rechdr {
-	uint32_t               crc;
-	uint32_t               size;
-};
-
 #endif /* MPOOL_MDC_H */
-
