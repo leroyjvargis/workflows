@@ -15,8 +15,6 @@
  * MDC OMF
  */
 
-#define MDC_LOGHDR_MAGIC   ((u32)0xdeadbeef)
-#define MDC_LOGHDR_VERSION ((u32)1)
 
 struct mdc_loghdr_omf {
 	__le32 lh_vers;

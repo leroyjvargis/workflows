@@ -16,6 +16,7 @@
 struct mpool;
 struct hse_params;
 struct mpool_params;
+struct mpool_mdc;
 
 merr_t
 mpool_open2(const char *name, const struct hse_params *params, struct mpool **handle);
@@ -49,5 +50,21 @@ mpool_mdc_delete2(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 
 merr_t
 mpool_mdc_abort2(struct mpool *mp, uint64_t logid1, uint64_t logid2);
+
+merr_t
+mpool_mdc_open2(
+    struct mpool        *mp,
+    uint64_t             logid1,
+    uint64_t             logid2,
+    struct mpool_mdc   **handle);
+
+merr_t
+mpool_mdc_close2(struct mpool_mdc *mdc);
+
+merr_t
+mpool_mdc_cstart2(struct mpool_mdc *mdc);
+
+merr_t
+mpool_mdc_cend2(struct mpool_mdc *mdc);
 
 #endif /* HSE_MPOOL2_H */

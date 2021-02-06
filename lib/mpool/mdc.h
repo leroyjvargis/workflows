@@ -17,12 +17,12 @@ struct mpool_mdc {
 	struct mdc_file       *mfp1;
 	struct mdc_file       *mfp2;
 	struct mdc_file       *mfpa;
+
 	struct media_class    *mc;
-
 	struct mpool          *mp;
-
-	uint64_t               magic;
-	int                    vers;
 };
+
+struct media_class *
+mdc_mclass_get(struct mpool_mdc *mdc);
 
 #endif /* MPOOL_MDC_H */

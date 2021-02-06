@@ -192,7 +192,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
         return err;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, 0, &mdc);
+    err = mpool_mdc_open2(ds, oid1, oid2, &mdc);
     if (err) {
         hse_elog(HSE_ERR "%s: cannot open cNDB MDC: @@e", err, __func__);
         return err;
@@ -214,7 +214,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
     if (ev(err))
         goto errout;
 
-    err2 = mpool_mdc_close(mdc);
+    err2 = mpool_mdc_close2(mdc);
     if (err2) {
         hse_elog(HSE_ERR "%s: MDC close failed: @@e", err, __func__);
         if (!err)
@@ -336,7 +336,7 @@ cndb_open(
         goto errout;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, 0, &cndb->cndb_mdc);
+    err = mpool_mdc_open2(ds, oid1, oid2, &cndb->cndb_mdc);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " mdc open failed");
         goto errout;
@@ -2613,7 +2613,7 @@ cndb_rollover(struct cndb *cndb)
         goto errout;
     }
 
-    err = mpool_mdc_cstart(cndb->cndb_mdc);
+    err = mpool_mdc_cstart2(cndb->cndb_mdc);
     if (err) {
         cndb->cndb_mdc = NULL; /* cstart closes the MDC on error */
         CNDB_LOG(err, cndb, HSE_ERR, " cstart failed");
@@ -2730,7 +2730,7 @@ cndb_rollover(struct cndb *cndb)
         }
     }
 
-    err = mpool_mdc_cend(cndb->cndb_mdc);
+    err = mpool_mdc_cend2(cndb->cndb_mdc);
     if (err) {
         cndb->cndb_mdc = NULL; /* cend closes the MDC on error */
         CNDB_LOG(err, cndb, HSE_ERR, " cend failed");
@@ -2923,7 +2923,7 @@ cndb_close(struct cndb *cndb)
     mutex_lock(&cndb->cndb_lock);
 
     if (cndb->cndb_mdc) {
-        err = mpool_mdc_close(cndb->cndb_mdc);
+        err = mpool_mdc_close2(cndb->cndb_mdc);
         if (err)
             CNDB_LOG(err, cndb, HSE_ERR, " MDC close failed");
     }
