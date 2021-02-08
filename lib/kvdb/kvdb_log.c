@@ -21,6 +21,7 @@
 #include <hse_ikvdb/limits.h>
 
 #include <mpool/mpool.h>
+#include <mpool/mpool2.h>
 
 #include "kvdb_log.h"
 
@@ -207,7 +208,7 @@ kvdb_log_rollback_oids(struct kvdb_log *log, union kvdb_mdu *mdp)
 {
     merr_t err;
 
-    err = mpool_mdc_delete(log->kl_ds, mdp->c.mdc_new_oid1, mdp->c.mdc_new_oid2);
+    err = mpool_mdc_delete2(log->kl_ds, mdp->c.mdc_new_oid1, mdp->c.mdc_new_oid2);
 
     /* If the mdc is already destroyed, report success */
     if (merr_errno(err) == ENOENT)
@@ -424,11 +425,11 @@ kvdb_log_open(struct mpool *ds, struct kvdb_log **handle, int mode)
     log->kl_ds = ds;
     log->kl_rdonly = (mode == O_RDONLY);
 
-    err = mpool_mdc_get_root(ds, &oid1, &oid2);
+    err = mpool_mdc_rootid_get(ds, &oid1, &oid2);
     if (ev(err))
         goto err_exit;
 
-    err = mpool_mdc_open(log->kl_ds, oid1, oid2, 0, &log->kl_mdc);
+    err = mpool_mdc_open2(log->kl_ds, oid1, oid2, &log->kl_mdc);
     if (ev(err))
         goto err_exit;
 
@@ -455,7 +456,7 @@ kvdb_log_close(struct kvdb_log *log)
     table_destroy(log->kl_work_old);
     table_destroy(log->kl_work);
 
-    err = mpool_mdc_close(log->kl_mdc);
+    err = mpool_mdc_close2(log->kl_mdc);
     if (ev(err))
         return err;
 
@@ -493,7 +494,7 @@ kvdb_log_rollover(struct kvdb_log *log)
         }
     }
 
-    err = mpool_mdc_cstart(log->kl_mdc);
+    err = mpool_mdc_cstart2(log->kl_mdc);
     if (ev(err))
         goto out;
 
@@ -534,7 +535,7 @@ kvdb_log_rollover(struct kvdb_log *log)
             goto out;
     }
 
-    err = ev(mpool_mdc_cend(log->kl_mdc));
+    err = ev(mpool_mdc_cend2(log->kl_mdc));
 
 out:
     if (err) {

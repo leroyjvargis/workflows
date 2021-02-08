@@ -153,7 +153,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
             goto errout;
     }
 
-    err = mpool_mdc_get_root(ds, &oid1, &oid2);
+    err = mpool_mdc_rootid_get(ds, &oid1, &oid2);
     if (ev(err))
         goto errout;
 

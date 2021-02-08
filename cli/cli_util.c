@@ -70,7 +70,7 @@ kvdb_list_props(const char *mpool, struct hse_params *params, struct yaml_contex
     unsigned int     kvs_cnt;
     char **          kvs_list;
     hse_err_t        err;
-    char             path[128];
+    char             path[129];
     int              i;
 
     err = hse_kvdb_open(mpool, params, &hdl);

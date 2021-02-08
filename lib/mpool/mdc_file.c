@@ -50,7 +50,7 @@ loghdr_update(int fd, struct mdc_loghdr *lh, uint64_t gen)
         return merr(errno);
 
     rc = fsync(fd);
-    if (rc)
+    if (rc < 0)
         return merr(errno);
 
     return 0;
@@ -73,7 +73,8 @@ loghdr_validate(struct mdc_file *mfp, uint64_t *gen)
         ;
     }
 
-    *gen = lh->gen;
+    if (gen)
+        *gen = lh->gen;
 
     return (valid == 1) ? 0 : merr(EBADMSG);
 }
@@ -109,7 +110,6 @@ mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity)
     fd = openat(dirfd, name, flags, mode);
     if (fd < 0) {
         err = merr(errno);
-        hse_elog(HSE_ERR "create mdc file failed, name %s: @@e", err, name);
         return err;
     }
 
@@ -189,7 +189,7 @@ mdc_file_unmap(struct mdc_file *mfp)
     int rc;
 
     rc = munmap(mfp->addr, mfp->size);
-    if (rc)
+    if (rc < 0)
         return merr(errno);
 
     return 0;
@@ -209,7 +209,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
 
     /* The MDC file will now be read sequentially. Pass this hint to VMM via madvise. */
     rc = madvise(addr, mfp->size, MADV_SEQUENTIAL);
-    if (rc)
+    if (rc < 0)
         hse_log(HSE_WARNING "madvise mdc file %s %p failed", mfp->name, addr);
 
     /* Step 1: validate log header */
@@ -275,7 +275,6 @@ mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_f
     fd = openat(dirfd, name, O_RDWR);
     if (fd < 0) {
         err = merr(errno);
-        hse_elog(HSE_ERR "Commit mdc file failed, name %s: @@e", err, name);
         return err;
     }
 
@@ -413,10 +412,44 @@ errout:
 merr_t
 mdc_file_gen(struct mdc_file *mfp, uint64_t *gen)
 {
-    if (ev(!mfp))
+    if (ev(!mfp || !gen))
         return merr(EINVAL);
 
     *gen = mfp->lh.gen;
+
+    return 0;
+}
+
+merr_t
+mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist)
+{
+    char name[32];
+    int fd;
+    merr_t err;
+
+    *exist = false;
+
+    mdc_filename_gen(name, sizeof(name), logid1);
+    fd = openat(dirfd, name, O_RDONLY);
+    if (fd < 0) {
+        err = merr(errno);
+        if (merr_errno(err) == ENOENT)
+            return 0;
+        return err;
+    }
+    close(fd);
+
+    mdc_filename_gen(name, sizeof(name), logid2);
+    fd = openat(dirfd, name, O_RDONLY);
+    if (fd < 0) {
+        err = merr(errno);
+        if (merr_errno(err) == ENOENT)
+            return 0;
+        return err;
+    }
+    close(fd);
+
+    *exist = true;
 
     return 0;
 }

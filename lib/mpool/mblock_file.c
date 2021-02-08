@@ -73,4 +73,6 @@ mblock_file_close(struct mblock_file *mbfp)
         return;
 
     close(mbfp->fd);
+
+    free(mbfp);
 }

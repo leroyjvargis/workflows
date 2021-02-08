@@ -67,4 +67,7 @@ mpool_mdc_cstart2(struct mpool_mdc *mdc);
 merr_t
 mpool_mdc_cend2(struct mpool_mdc *mdc);
 
+merr_t
+mpool_mdc_rootid_get(struct mpool *mp, uint64_t *logid1, uint64_t *logid2);
+
 #endif /* HSE_MPOOL2_H */

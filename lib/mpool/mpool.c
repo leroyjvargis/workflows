@@ -15,6 +15,7 @@
 #include <mpool/mpool_internal.h>
 
 #include "mpool.h"
+#include "mdc.h"
 
 #define UUID_STRLEN    36
 
@@ -52,6 +53,10 @@ mpool_open2(const char *name, const struct hse_params *params, struct mpool **ha
 
     strlcpy(mp->name, name, sizeof(mp->name));
 
+    err = mpool_mdc_root_init(mp);
+    if (ev(err))
+        goto errout;
+
     *handle = mp;
 
     return 0;
@@ -75,9 +80,11 @@ mpool_close2(struct mpool *mp)
         return merr(EINVAL);
 
     for (i = MCID_MAX - 1; i >= MCID_CAPACITY; i--) {
-        err = mclass_close(mp->mc[i]);
-        if (err)
-            hse_log(HSE_ERR "Closing mclass id %d failed", i);
+        if (mp->mc[i]) {
+            err = mclass_close(mp->mc[i]);
+            if (err)
+                hse_log(HSE_ERR "Closing mclass id %d failed", i);
+        }
     }
 
     free(mp);
@@ -92,6 +99,8 @@ mpool_destroy2(struct mpool *mp)
 
     if (ev(!mp))
         return merr(EINVAL);
+
+    mpool_mdc_root_destroy(mp);
 
     for (i = MCID_MAX - 1; i >= MCID_CAPACITY; i--)
         mclass_destroy(mp->mc[i]);

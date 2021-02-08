@@ -235,7 +235,8 @@ mpool_mdc_open2(
     return err;
 }
 
-merr_t mpool_mdc_close2(struct mpool_mdc *mdc)
+merr_t
+mpool_mdc_close2(struct mpool_mdc *mdc)
 {
     merr_t err, rval = 0;
 
@@ -263,7 +264,8 @@ merr_t mpool_mdc_close2(struct mpool_mdc *mdc)
     return rval;
 }
 
-merr_t mpool_mdc_cstart2(struct mpool_mdc *mdc)
+merr_t
+mpool_mdc_cstart2(struct mpool_mdc *mdc)
 {
     if (ev(!mdc))
         return merr(EINVAL);
@@ -280,7 +282,8 @@ merr_t mpool_mdc_cstart2(struct mpool_mdc *mdc)
     return 0;
 }
 
-merr_t mpool_mdc_cend2(struct mpool_mdc *mdc)
+merr_t
+mpool_mdc_cend2(struct mpool_mdc *mdc)
 {
     struct mdc_file  *srch, *tgth;
     merr_t err;
@@ -312,4 +315,83 @@ merr_t mpool_mdc_cend2(struct mpool_mdc *mdc)
     mutex_unlock(&mdc->lock);
 
     return err;
+}
+
+merr_t
+mpool_mdc_rootid_get(struct mpool *mp, uint64_t *logid1, uint64_t *logid2)
+{
+    if (ev(!logid1 || !logid2))
+        return merr(EINVAL);
+
+    *logid1 = logid_make(0, MCID_CAPACITY, MDC_ROOT_MAGIC);
+    *logid2 = logid_make(1, MCID_CAPACITY, MDC_ROOT_MAGIC);
+
+    return 0;
+}
+
+static merr_t
+mdc_exists(
+    struct mpool        *mp,
+    uint64_t             logid1,
+    uint64_t             logid2,
+    bool                *exist)
+{
+    enum mclass_id mcid;
+    int dirfd;
+    merr_t err;
+
+    if (!mp || logid1 == logid2 || !exist)
+        return merr(EINVAL);
+
+    mcid = logid_mcid(logid1);
+    dirfd = mclass_dirfd(mpool_mch_get(mp, mcid));
+
+    err = mdc_file_exists(dirfd, logid1, logid2, exist);
+    if (ev(err))
+        return err;
+
+    return 0;
+}
+
+merr_t
+mpool_mdc_root_init(struct mpool *mp)
+{
+    uint64_t id[2];
+    merr_t err;
+    bool exist;
+
+    err = mpool_mdc_rootid_get(mp, &id[0], &id[1]);
+    if (ev(err))
+        return err;
+
+    err = mdc_exists(mp, id[0], id[1], &exist);
+    if (!err && !exist) {
+        err = mpool_mdc_alloc2(mp, MDC_ROOT_MAGIC, MPOOL_ROOT_LOG_CAP,
+                               MCID_CAPACITY, &id[0], &id[1]);
+        if (ev(err))
+            return err;
+
+        err = mpool_mdc_commit2(mp, id[0], id[1]);
+        if (ev(err))
+            return err;
+    }
+
+    return err;
+}
+
+merr_t
+mpool_mdc_root_destroy(struct mpool *mp)
+{
+    uint64_t id[2];
+    merr_t err;
+
+    err = mpool_mdc_rootid_get(mp, &id[0], &id[1]);
+    if (ev(err))
+        return err;
+
+    err = mpool_mdc_delete2(mp, id[0], id[1]);
+    if (ev(err))
+        return err;
+
+    return 0;
 }

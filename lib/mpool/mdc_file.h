@@ -72,6 +72,9 @@ mdc_file_erase_byid(int dirfd, uint64_t logid, uint64_t newgen);
 merr_t
 mdc_file_gen(struct mdc_file *mfp, uint64_t *gen);
 
+merr_t
+mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist);
+
 static inline uint64_t
 logid_make(u8 fid, enum mclass_id mcid, uint32_t magic)
 {

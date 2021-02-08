@@ -17,17 +17,14 @@ struct mdc;
  * struct mpool - mpool handle
  *
  * @mc:       media class handles
- * @mdc_root: root mdc handle (stored in the capacity mclass)
  * @name:     mpool/kvdb name
  */
 struct mpool {
 	struct media_class *mc[MCID_MAX];
 
-	struct mdc         *mdc_root;
-
 	char                name[64];
-}
-;
+};
+
 struct media_class *
 mpool_mch_get(struct mpool *mp, enum mclass_id mcid);
 
