@@ -203,14 +203,14 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
     omf_set_cnver_version(&ver, CNDB_VERSION);
     omf_set_cnver_captgt(&ver, captgt);
 
-    err = mpool_mdc_append(mdc, &ver, sizeof(ver), true);
+    err = mpool_mdc_append2(mdc, &ver, sizeof(ver), true);
     if (ev(err))
         goto errout;
 
     cndb_set_hdr(&meta.hdr, CNDB_TYPE_META, sizeof(meta));
     omf_set_cnmeta_seqno_max(&meta, 0);
 
-    err = mpool_mdc_append(mdc, &meta, sizeof(meta), true);
+    err = mpool_mdc_append2(mdc, &meta, sizeof(meta), true);
     if (ev(err))
         goto errout;
 
@@ -2024,7 +2024,7 @@ cndb_read(struct cndb *cndb, size_t *len)
     void * p; /* because checkfiles said so */
 
     do {
-        err = mpool_mdc_read(cndb->cndb_mdc, cndb->cndb_cbuf, cndb->cndb_cbufsz, len);
+        err = mpool_mdc_read2(cndb->cndb_mdc, cndb->cndb_cbuf, cndb->cndb_cbufsz, len);
         if (merr_errno(err) == EOVERFLOW) {
             p = realloc(cndb->cndb_cbuf, *len);
             if (!p) {
@@ -2626,7 +2626,7 @@ cndb_rollover(struct cndb *cndb)
     omf_set_cnver_version(ver, CNDB_VERSION);
     omf_set_cnver_captgt(ver, cndb->cndb_captgt);
 
-    err = mpool_mdc_append(cndb->cndb_mdc, ver, sizeof(*ver), false);
+    err = mpool_mdc_append2(cndb->cndb_mdc, ver, sizeof(*ver), false);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " version write failed");
         goto errout;
@@ -2636,7 +2636,7 @@ cndb_rollover(struct cndb *cndb)
     cndb_set_hdr(&meta->hdr, CNDB_TYPE_META, sizeof(*meta));
     omf_set_cnmeta_seqno_max(meta, max_t(u64, cndb->cndb_seqno, cndb_ikvdb_seqno_get(cndb)));
 
-    err = mpool_mdc_append(cndb->cndb_mdc, meta, sizeof(*meta), false);
+    err = mpool_mdc_append2(cndb->cndb_mdc, meta, sizeof(*meta), false);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " meta write failed");
         goto errout;
@@ -2670,7 +2670,7 @@ cndb_rollover(struct cndb *cndb)
         sz = cn->cn_cbufsz;
         cndb_info2omf(CNDB_TYPE_INFO, cn, inf);
 
-        err = mpool_mdc_append(cndb->cndb_mdc, inf, sz, false);
+        err = mpool_mdc_append2(cndb->cndb_mdc, inf, sz, false);
         if (err) {
             CNDB_LOG(err, cndb, HSE_ERR, " info %lu failed", (ulong)cn->cn_cnid);
             goto errout;
@@ -2705,7 +2705,7 @@ cndb_rollover(struct cndb *cndb)
         }
 
         sz = omf_cnhdr_len(buf) + sizeof(struct cndb_hdr_omf);
-        err = mpool_mdc_append(cndb->cndb_mdc, buf, sz, false);
+        err = mpool_mdc_append2(cndb->cndb_mdc, buf, sz, false);
         if (err) {
             CNDB_LOGTX(err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " append failed (keepv)");
             goto errout;
@@ -2723,7 +2723,7 @@ cndb_rollover(struct cndb *cndb)
         }
 
         sz = omf_cnhdr_len(buf) + sizeof(struct cndb_hdr_omf);
-        err = mpool_mdc_append(cndb->cndb_mdc, buf, sz, false);
+        err = mpool_mdc_append2(cndb->cndb_mdc, buf, sz, false);
         if (err) {
             CNDB_LOGTX(err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " append failed (workv)");
             goto errout;
@@ -2775,7 +2775,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         goto errout;
     }
 
-    err = mpool_mdc_usage(cndb->cndb_mdc, &usage);
+    err = mpool_mdc_usage2(cndb->cndb_mdc, &usage);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
         goto errout;
@@ -2801,7 +2801,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
             goto errout;
         }
 
-        err = mpool_mdc_usage(cndb->cndb_mdc, &usage);
+        err = mpool_mdc_usage2(cndb->cndb_mdc, &usage);
         if (err) {
             CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
             goto errout;
@@ -2866,7 +2866,7 @@ accept_record:
         assert(count <= cndb->cndb_entries);
     }
 
-    err = mpool_mdc_append(cndb->cndb_mdc, data, sz, true);
+    err = mpool_mdc_append2(cndb->cndb_mdc, data, sz, true);
     if (err) {
         struct cndb_hdr_omf *hdr = data;
 

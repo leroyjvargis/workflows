@@ -20,7 +20,7 @@
 #define UUID_STRLEN    36
 
 merr_t
-mpool_open2(const char *name, const struct hse_params *params, struct mpool **handle)
+mpool_open2(const char *name, const struct hse_params *params, int flags, struct mpool **handle)
 {
     struct mpool *mp;
 
@@ -42,13 +42,18 @@ mpool_open2(const char *name, const struct hse_params *params, struct mpool **ha
 
         if (hse_params_get(params, mc_key[i], dpath, sizeof(dpath), NULL)) {
             if (dpath[0] != '\0') {
-                err = mclass_open(mp, i, dpath, &mp->mc[i]);
+                err = mclass_open(mp, i, dpath, flags, &mp->mc[i]);
                 if (ev(err)) {
                     hse_log(HSE_ERR "Malformed storage path for mclass %s", mc_key[i]);
                     goto errout;
                 }
             }
         }
+    }
+
+    if (!mp->mc[MCID_CAPACITY]) {
+        hse_log(HSE_ERR "Capacity mclass path is missing for mpool %s", name);
+        goto errout;
     }
 
     strlcpy(mp->name, name, sizeof(mp->name));
@@ -146,5 +151,6 @@ mpool_params_set2(struct mpool *mp, struct mpool_params *params)
 struct media_class *
 mpool_mch_get(struct mpool *mp, enum mclass_id mcid)
 {
+    assert(mcid < MCID_MAX);
     return mp->mc[mcid];
 }

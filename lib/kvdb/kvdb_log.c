@@ -283,13 +283,13 @@ kvdb_log_replay(
     *cndblog_oid1 = 0;
     *cndblog_oid2 = 0;
 
-    err = mpool_mdc_rewind(log->kl_mdc);
+    err = mpool_mdc_rewind2(log->kl_mdc);
     if (ev(err))
         return err;
 
     log->kl_serial = 0;
 
-    err = mpool_mdc_read(log->kl_mdc, log->kl_buf, sizeof(log->kl_buf), &len);
+    err = mpool_mdc_read2(log->kl_mdc, log->kl_buf, sizeof(log->kl_buf), &len);
     if (ev(err))
         return err;
 
@@ -312,7 +312,7 @@ kvdb_log_replay(
         union kvdb_mdu *mdp;
         size_t          len;
 
-        err = mpool_mdc_read(log->kl_mdc, log->kl_buf, sizeof(log->kl_buf), &len);
+        err = mpool_mdc_read2(log->kl_mdc, log->kl_buf, sizeof(log->kl_buf), &len);
         if (len == 0 || ev(err))
             break;
 
@@ -384,7 +384,7 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt)
     omf_set_ver_magic(&ver, KVDB_LOG_MAGIC);
     omf_set_ver_captgt(&ver, captgt);
 
-    err = mpool_mdc_append(log->kl_mdc, &ver, sizeof(ver), true);
+    err = mpool_mdc_append2(log->kl_mdc, &ver, sizeof(ver), true);
     if (ev(err))
         return err;
 
@@ -506,7 +506,7 @@ kvdb_log_rollover(struct kvdb_log *log)
     mdu.v.mdv_version = KVDB_LOG_VERSION;
     mdu.v.mdv_captgt = log->kl_captgt;
     kvdb_log_mdx_to_omf((void *)log->kl_buf, &mdu);
-    err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
+    err = mpool_mdc_append2(log->kl_mdc, log->kl_buf, sz, false);
     if (ev(err))
         goto out;
 
@@ -520,7 +520,7 @@ kvdb_log_rollover(struct kvdb_log *log)
         mdu.c.mdc_new_oid1 = log->kl_cndb_oid1;
         mdu.c.mdc_new_oid2 = log->kl_cndb_oid2;
         kvdb_log_mdx_to_omf((void *)log->kl_buf, &mdu);
-        err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
+        err = mpool_mdc_append2(log->kl_mdc, log->kl_buf, sz, false);
         if (ev(err))
             goto out;
     }
@@ -530,7 +530,7 @@ kvdb_log_rollover(struct kvdb_log *log)
         tx = table_at(tab, i);
         memset(log->kl_buf, 0, sizeof(log->kl_buf));
         sz = kvdb_log_mdx_to_omf((void *)log->kl_buf, tx);
-        err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
+        err = mpool_mdc_append2(log->kl_mdc, log->kl_buf, sz, false);
         if (ev(err))
             goto out;
     }
@@ -654,7 +654,7 @@ kvdb_log_journal(struct kvdb_log *log, void *buf, size_t sz)
 
     sz += sizeof(struct kvdb_log_hdr2_omf);
 
-    err = mpool_mdc_usage(log->kl_mdc, &usage);
+    err = mpool_mdc_usage2(log->kl_mdc, &usage);
     if (ev(err))
         goto out;
 
@@ -663,7 +663,7 @@ kvdb_log_journal(struct kvdb_log *log, void *buf, size_t sz)
         if (ev(err))
             goto out;
 
-        err = mpool_mdc_usage(log->kl_mdc, &usage);
+        err = mpool_mdc_usage2(log->kl_mdc, &usage);
         if (ev(err))
             goto out;
 
@@ -683,7 +683,7 @@ kvdb_log_journal(struct kvdb_log *log, void *buf, size_t sz)
             hse_log(HSE_ERR "%s: compacted MDC above high water", __func__);
     }
 
-    err = mpool_mdc_append(log->kl_mdc, buf, sz, true);
+    err = mpool_mdc_append2(log->kl_mdc, buf, sz, true);
     if (ev(err))
         hse_elog(HSE_ERR "%s: cannot append MDC: @@e", err, __func__);
 

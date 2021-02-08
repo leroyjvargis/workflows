@@ -12,9 +12,10 @@
 
 #include "mclass.h"
 
-#define MDC_LOGHDR_MAGIC   ((u32)0xdeadbeef)
-#define MDC_LOGHDR_VERSION ((u32)1)
-#define MDC_LOGHDR_LEN     (4096)
+#define MDC_LOGHDR_MAGIC       ((u32)0xdeadbeef)
+#define MDC_LOGHDR_VERSION     ((u32)1)
+#define MDC_LOGHDR_LEN         (4096)
+#define MDC_RA_BYTES           (128 << 10)
 
 struct mdc_loghdr {
 	uint32_t              crc;
@@ -31,6 +32,7 @@ struct mdc_file {
 	uint64_t               logid;
 	int                    fd;
 
+	off_t                  raoff;
 	off_t                  woff;
 	off_t                  roff;
 	size_t                 size;
@@ -74,6 +76,21 @@ mdc_file_gen(struct mdc_file *mfp, uint64_t *gen);
 
 merr_t
 mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist);
+
+merr_t
+mdc_file_sync(struct mdc_file *mfp);
+
+merr_t
+mdc_file_rewind(struct mdc_file *mfp);
+
+merr_t
+mdc_file_usage(struct mdc_file *mfp, size_t *usage);
+
+merr_t
+mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen);
+
+merr_t
+mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync);
 
 static inline uint64_t
 logid_make(u8 fid, enum mclass_id mcid, uint32_t magic)

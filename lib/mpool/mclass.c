@@ -42,7 +42,12 @@ mclass_lockfile_rel(int dirfd)
 }
 
 merr_t
-mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct media_class **handle)
+mclass_open(
+    struct mpool        *mp,
+    enum mclass_id       mcid,
+    const char          *dpath,
+    int                  flags,
+    struct media_class **handle)
 {
     struct media_class *mc;
 
@@ -76,7 +81,7 @@ mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct med
 
     strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
 
-    err = mblock_fset_open(mc, &mc->mbfsp);
+    err = mblock_fset_open(mc, flags, &mc->mbfsp);
     if (err) {
         hse_elog(HSE_ERR "Opening data files failed, mcid %d: @@e", err, mcid);
         goto err_exit1;

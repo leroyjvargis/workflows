@@ -20,7 +20,12 @@
 #include "mblock_file.h"
 
 merr_t
-mblock_file_open(struct mblock_fset *mbfsp, int dirfd, char *name, struct mblock_file **handle)
+mblock_file_open(
+    struct mblock_fset  *mbfsp,
+    int                  dirfd,
+    char                *name,
+    int                  flags,
+    struct mblock_file **handle)
 {
     struct mblock_file *mbfp;
 
@@ -38,7 +43,12 @@ mblock_file_open(struct mblock_fset *mbfsp, int dirfd, char *name, struct mblock
     mbfp->maxsz = MBLOCK_FILE_SIZE_MAX;
     strlcpy(mbfp->name, name, sizeof(mbfp->name));
 
-    fd = openat(dirfd, name, O_RDWR | O_DIRECT | O_CREAT, S_IRUSR | S_IWUSR);
+    if (flags == 0)
+        flags = O_RDWR;
+
+    flags &= O_RDWR | O_RDONLY | O_WRONLY;
+
+    fd = openat(dirfd, name, flags | O_DIRECT | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         err = merr(errno);
         hse_elog(HSE_ERR "open/create data file failed, file name %s: @@e", err, name);

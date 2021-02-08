@@ -127,7 +127,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open2(mpool_name, params, &ds);
+    err = mpool_open2(mpool_name, params, O_RDWR, &ds);
     if (ev(err))
         return merr_to_hse_err(err);
 

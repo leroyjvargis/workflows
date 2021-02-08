@@ -76,7 +76,7 @@ loghdr_validate(struct mdc_file *mfp, uint64_t *gen)
     if (gen)
         *gen = lh->gen;
 
-    return (valid == 1) ? 0 : merr(EBADMSG);
+    return valid ? 0 : merr(EBADMSG);
 }
 
 static merr_t
@@ -170,13 +170,13 @@ mdc_file_mmap(struct mdc_file *mfp)
 {
     int flags, prot;
 
-    if (!mfp || mfp->fd < 0 || !PAGE_ALIGNED(mfp->roff))
+    if (ev(!mfp))
         return merr(EINVAL);
 
-    flags = MAP_SHARED | MAP_NORESERVE;
-    prot = PROT_READ;
+    flags = MAP_SHARED;
+    prot = PROT_READ | PROT_WRITE;
 
-    mfp->addr = mmap(NULL, mfp->size, prot, flags, mfp->fd, mfp->roff);
+    mfp->addr = mmap(NULL, mfp->size, prot, flags, mfp->fd, 0);
     if (mfp->addr == MAP_FAILED)
         return merr(errno);
 
@@ -201,6 +201,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
     char *addr;
     merr_t err;
     int rc;
+    int rhlen;
 
     if (ev(!mfp))
         return merr(EINVAL);
@@ -219,6 +220,8 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
 
     addr += MDC_LOGHDR_LEN; /* move past the log header */
 
+    rhlen = omf_mdc_rechdr_len();
+
     /* Step 2: validate log records */
     do {
         size_t recsz;
@@ -233,11 +236,11 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
             goto errout;
         }
 
-        addr += recsz;
+        addr += (rhlen + recsz);
     } while (true);
 
 errout:
-    madvise(addr, mfp->size, MADV_DONTNEED);
+    madvise(mfp->addr, mfp->size, MADV_DONTNEED);
 
     return err;
 }
@@ -273,13 +276,13 @@ mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_f
     dirfd = mclass_dirfd(mdc_mclass_get(mdc));
 
     fd = openat(dirfd, name, O_RDWR);
-    if (fd < 0) {
+    if (ev(fd < 0)) {
         err = merr(errno);
         return err;
     }
 
     mfp = calloc(1, sizeof(*mfp));
-    if (!mfp) {
+    if (ev(!mfp)) {
         err = merr(ENOMEM);
         goto err_exit2;
     }
@@ -293,6 +296,8 @@ mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_f
     mfp->fd = fd;
     mfp->io = &io_sync_ops;
     strlcpy(mfp->name, name, sizeof(mfp->name));
+    mfp->roff = MDC_LOGHDR_LEN;
+    mfp->raoff = MDC_RA_BYTES;
 
     err = mdc_file_mmap(mfp);
     if (ev(err))
@@ -357,7 +362,7 @@ mdc_file_empty(struct mdc_file *mfp, bool *empty)
 merr_t
 mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
 {
-    merr_t err = 0;
+    merr_t err;
     int rc;
 
     if (ev(!mfp))
@@ -450,6 +455,123 @@ mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist)
     close(fd);
 
     *exist = true;
+
+    return 0;
+}
+
+merr_t
+mdc_file_sync(struct mdc_file *mfp)
+{
+    int rc;
+
+    if (ev(!mfp))
+        return merr(EINVAL);
+
+    rc = msync(mfp->addr, mfp->woff, MS_SYNC);
+    if (rc < 0)
+        return merr(errno);
+
+    return 0;
+}
+
+merr_t
+mdc_file_rewind(struct mdc_file *mfp)
+{
+    if (ev(!mfp))
+        return merr(EINVAL);
+
+    mfp->roff = MDC_LOGHDR_LEN;
+    mfp->raoff = MDC_RA_BYTES;
+
+    return 0;
+}
+
+merr_t
+mdc_file_usage(struct mdc_file *mfp, size_t *usage)
+{
+    if (ev(!mfp || !usage))
+        return merr(EINVAL);
+
+    *usage = mfp->woff;
+
+    return 0;
+}
+
+merr_t
+mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen)
+{
+    struct mdc_rechdr rh;
+    char *addr;
+    int rhlen, rc;
+
+    if (ev(!mfp || !data))
+        return merr(EINVAL);
+
+    if (mfp->roff == MDC_LOGHDR_LEN) { /* First read */
+        rc = madvise(mfp->addr, mfp->woff, MADV_SEQUENTIAL);
+        ev(rc);
+    }
+
+    addr = mfp->addr + mfp->roff;
+
+    if (mfp->roff > mfp->raoff) {
+        rc = madvise(addr - MDC_RA_BYTES, MDC_RA_BYTES, MADV_DONTNEED);
+        ev(rc);
+
+        mfp->raoff <<= 1;
+    }
+
+    omf_mdc_rechdr_unpack_letoh(&rh, (const char *)addr);
+
+    rhlen = omf_mdc_rechdr_len();
+    addr += rhlen;
+
+    if (rdlen)
+        *rdlen = rh.size;
+
+    if (rh.size > len)
+        return merr(EOVERFLOW);
+
+    /* TODO: validate CRC */
+    memcpy(data, addr, rh.size);
+
+    mfp->roff += (rhlen + rh.size);
+
+    return 0;
+}
+
+merr_t
+mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
+{
+    struct mdc_rechdr rh;
+    char *addr;
+    size_t rhlen;
+
+    if (ev(!mfp || !data))
+        return merr(EINVAL);
+
+    rhlen = omf_mdc_rechdr_len();
+    addr = mfp->addr + mfp->woff;
+
+    rh.crc = 0; /* TODO: Calculate CRC */
+    rh.size = len;
+
+    omf_mdc_rechdr_pack_htole(&rh, addr);
+    mfp->woff += rhlen;
+    addr += rhlen;
+
+    memcpy(addr, data, len);
+    mfp->woff += len;
+
+    if (sync) {
+        int rc;
+
+        rc = msync(mfp->addr, mfp->woff, MS_SYNC);
+        if (rc < 0) {
+            mfp->woff -= (rhlen + len);
+            return merr(errno);
+        }
+    }
 
     return 0;
 }

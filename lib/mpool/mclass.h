@@ -42,11 +42,17 @@ struct media_class {
  * @mp:    mpool handle
  * @mcid:  mclass ID
  * @dpath: mclass directory path
+ * @flags: open flags
  *
  * @handle(output): mclass handle
  */
 merr_t
-mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct media_class **handle);
+mclass_open(
+    struct mpool        *mp,
+    enum mclass_id       mcid,
+    const char          *dpath,
+    int                  flags,
+    struct media_class **handle);
 
 /**
  * mclass_close() - close an mclass

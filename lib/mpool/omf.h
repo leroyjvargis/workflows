@@ -53,4 +53,7 @@ omf_mdc_rechdr_pack_htole(struct mdc_rechdr *rh, char *outbuf);
 void
 omf_mdc_rechdr_unpack_letoh(struct mdc_rechdr *rh, const char *inbuf);
 
+size_t
+omf_mdc_rechdr_len(void);
+
 #endif /* MPOOL_OMF_H */

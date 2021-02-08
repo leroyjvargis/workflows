@@ -124,16 +124,16 @@ mpool_mdc_open2(
     struct mpool_mdc  *mdc;
 
     enum mclass_id mcid;
-    merr_t  err = 0, err1 = 0, err2 = 0;
+    merr_t  err, err1, err2;
     uint64_t gen1 = 0, gen2 = 0;
     bool empty = false;
     int dirfd;
 
-    if (!mp || !handle || logid1 == logid2)
+    if (ev(!mp || !handle || logid1 == logid2))
         return merr(EINVAL);
 
     mdc = calloc(1, sizeof(*mdc));
-    if (!mdc)
+    if (ev(!mdc))
         return merr(ENOMEM);
 
     mdc->mp = mp;
@@ -240,7 +240,7 @@ mpool_mdc_close2(struct mpool_mdc *mdc)
 {
     merr_t err, rval = 0;
 
-    if (!mdc)
+    if (ev(!mdc))
         return merr(EINVAL);
 
     mutex_lock(&mdc->lock);
@@ -394,4 +394,101 @@ mpool_mdc_root_destroy(struct mpool *mp)
         return err;
 
     return 0;
+}
+
+merr_t
+mpool_mdc_sync2(struct mpool_mdc *mdc)
+{
+    merr_t err;
+
+    if (ev(!mdc))
+        return merr(EINVAL);
+
+    mutex_lock(&mdc->lock);
+
+    err = mdc_file_sync(mdc->mfpa);
+    if (err)
+        hse_elog(HSE_ERR "mdc %p sync failed, mdc file %p: @@e", err, mdc, mdc->mfpa);
+
+    mutex_unlock(&mdc->lock);
+
+    return err;
+}
+
+merr_t
+mpool_mdc_rewind2(struct mpool_mdc *mdc)
+{
+    merr_t err;
+
+    if (ev(!mdc))
+        return merr(EINVAL);
+
+    mutex_lock(&mdc->lock);
+
+    err = mdc_file_rewind(mdc->mfpa);
+    if (err)
+        hse_elog(HSE_ERR "mdc %p rewind failed, mdc file %p: @@e", err, mdc, mdc->mfpa);
+
+    mutex_unlock(&mdc->lock);
+
+    return err;
+}
+
+merr_t
+mpool_mdc_read2(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
+{
+    merr_t err;
+
+    if (!mdc || !data)
+        return merr(EINVAL);
+
+    mutex_lock(&mdc->lock);
+
+    err = mdc_file_read(mdc->mfpa, data, len, rdlen);
+    if (err && (merr_errno(err) != EOVERFLOW))
+        hse_elog(HSE_ERR "mdc %p read failed, mdc file %p len %lu: @@e",
+              err, mdc, mdc->mfpa, len);
+
+    mutex_unlock(&mdc->lock);
+
+    return err;
+}
+
+merr_t
+mpool_mdc_append2(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
+{
+    merr_t err;
+
+    if (!mdc || !data)
+        return merr(EINVAL);
+
+    mutex_lock(&mdc->lock);
+
+    err = mdc_file_append(mdc->mfpa, data, len, sync);
+    if (err)
+        hse_elog(HSE_ERR "mdc %p append failed, mdc file %p, len %lu sync %d: @@e",
+              err, mdc, mdc->mfpa, len, sync);
+
+    mutex_unlock(&mdc->lock);
+
+    return err;
+}
+
+merr_t
+mpool_mdc_usage2(struct mpool_mdc *mdc, size_t *usage)
+{
+    merr_t err;
+
+    if (!mdc || !usage)
+        return merr(EINVAL);
+
+    mutex_lock(&mdc->lock);
+
+    err = mdc_file_usage(mdc->mfpa, usage);
+    if (err)
+        hse_elog(HSE_ERR "mdc %p usage failed, mdc file %p: @@e", err, mdc, mdc->mfpa);
+
+    mutex_unlock(&mdc->lock);
+
+    return err;
 }

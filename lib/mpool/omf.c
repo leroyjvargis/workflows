@@ -62,3 +62,9 @@ omf_mdc_rechdr_unpack_letoh(struct mdc_rechdr *rh, const char *inbuf)
     rh->crc = omf_rh_crc(rhomf);
     rh->size = omf_rh_size(rhomf);
 }
+
+size_t
+omf_mdc_rechdr_len(void)
+{
+    return sizeof(struct mdc_rechdr_omf);
+}
