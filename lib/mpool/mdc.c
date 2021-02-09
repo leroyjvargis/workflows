@@ -438,13 +438,14 @@ merr_t
 mpool_mdc_read2(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 {
     merr_t err;
+    bool verify = false;
 
     if (!mdc || !data)
         return merr(EINVAL);
 
     mutex_lock(&mdc->lock);
 
-    err = mdc_file_read(mdc->mfpa, data, len, rdlen);
+    err = mdc_file_read(mdc->mfpa, data, len, rdlen, verify);
     if (err && (merr_errno(err) != EOVERFLOW))
         hse_elog(HSE_ERR "mdc %p read failed, mdc file %p len %lu: @@e",
               err, mdc, mdc->mfpa, len);
@@ -455,7 +456,7 @@ mpool_mdc_read2(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 }
 
 merr_t
-mpool_mdc_append2(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
+mpool_mdc_append2(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 {
     merr_t err;
 

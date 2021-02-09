@@ -34,21 +34,21 @@ OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
 
 struct mdc_rechdr_omf {
 	__le32 rh_crc;
-	__le32 rh_size;
+	__le64 rh_size;
 } __packed;
 
 /* Define set/get methods for mdc_rechdr_omf */
 OMF_SETGET(struct mdc_rechdr_omf, rh_crc, 32);
-OMF_SETGET(struct mdc_rechdr_omf, rh_size, 32);
+OMF_SETGET(struct mdc_rechdr_omf, rh_size, 64);
 
 merr_t
 omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf);
 
-void
+merr_t
 omf_mdc_loghdr_unpack_letoh(struct mdc_loghdr *lh, const char *inbuf);
 
-void
-omf_mdc_rechdr_pack_htole(struct mdc_rechdr *rh, char *outbuf);
+size_t
+omf_mdc_loghdr_len(void);
 
 void
 omf_mdc_rechdr_unpack_letoh(struct mdc_rechdr *rh, const char *inbuf);

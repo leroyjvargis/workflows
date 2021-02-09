@@ -8,6 +8,7 @@
 #include <mpool/mpool.h>
 #include <mpool/mpool2.h>
 
+#include <3rdparty/crc32c.h>
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
 #include <hse/kvdb_perfc.h>
@@ -76,6 +77,8 @@ hse_kvdb_init(void)
     err = hse_platform_init();
     if (err)
         return merr_to_hse_err(err);
+
+    crc32c_init();
 
     err = ikvdb_init();
     if (err) {

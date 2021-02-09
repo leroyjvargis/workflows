@@ -1181,6 +1181,10 @@ int main(int argc, char **argv)
 
     const char *name = "mdctest";
 
+    herr = hse_kvdb_init();
+    if (herr)
+        return -1;
+
     herr = hse_params_create(&params);
     if (herr)
         return -1;

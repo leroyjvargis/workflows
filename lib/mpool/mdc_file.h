@@ -18,11 +18,11 @@
 #define MDC_RA_BYTES           (128 << 10)
 
 struct mdc_loghdr {
-	uint32_t              crc;
 	uint32_t              vers;
 	uint32_t              magic;
-	uint32_t              rsvd;
 	uint64_t              gen;
+	uint32_t              rsvd;
+	uint32_t              crc;
 };
 
 struct mdc_file {
@@ -43,8 +43,8 @@ struct mdc_file {
 };
 
 struct mdc_rechdr {
+	uint64_t               size;
 	uint32_t               crc;
-	uint32_t               size;
 };
 
 merr_t
@@ -87,7 +87,7 @@ merr_t
 mdc_file_usage(struct mdc_file *mfp, size_t *usage);
 
 merr_t
-mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen);
+mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen, bool verify);
 
 merr_t
 mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync);

@@ -74,7 +74,7 @@ merr_t
 mpool_mdc_usage2(struct mpool_mdc *mdc, size_t *usage);
 
 merr_t
-mpool_mdc_append2(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync);
+mpool_mdc_append2(struct mpool_mdc *mdc, void *data, size_t len, bool sync);
 
 merr_t
 mpool_mdc_read2(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen);
