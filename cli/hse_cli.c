@@ -138,15 +138,18 @@ struct cli {
 /*****************************************************************
  * HSE KVDB commands:
  *    hse kvdb create
+ *    hse kvdb destroy
  *    hse kvdb list
  *    hse kvdb compact
  */
 static cli_cmd_func_t cli_hse_kvdb_create;
+static cli_cmd_func_t cli_hse_kvdb_destroy;
 static cli_cmd_func_t cli_hse_kvdb_list;
 static cli_cmd_func_t cli_hse_kvdb_compact;
 static cli_cmd_func_t cli_hse_kvdb_params;
 struct cli_cmd        cli_hse_kvdb_commands[] = {
     { "create",  "Create a KVDB", cli_hse_kvdb_create, 0 },
+    { "destroy", "Destroy a KVDB", cli_hse_kvdb_destroy, 0 },
     { "list",    "List KVDBs", cli_hse_kvdb_list, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
     { "params",  "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
@@ -663,24 +666,10 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
             case EEXIST:
                 fprintf(
                     stderr,
-                    STR("A KVDB already exists on mpool '%s'.  You can destroy and\n"
-                        "recreate mpool '%s', or create a new mpool with different\n"
-                        "name and create a KVDB on it.\n"),
+                    STR("KVDB '%s' already exists. You can destroy and "
+                        "recreate kvdb '%s'.\n"
+                        "Please ensure that the media class data directory is empty.\n"),
                     kvdb_name, kvdb_name);
-                break;
-            case ENOENT:
-                fprintf(
-                    stderr,
-                    STR("No such mpool: '%s'\n"
-                        "You must create an mpool before creating a KVDB.\n"
-                        "The mpool and the KVDB must have the same name.\n"
-                        "Example that creates a KVDB named 'test' on logical volume vg1/lv1:\n"
-                        "  pvcreate /dev/nvmeXXX\n"
-                        "  vgcreate vg1 /dev/nvmeXXX\n"
-                        "  lvcreate -l 100%%FREE -n lv1 vg1\n"
-                        "  mpool create test /dev/vg1/lv1\n"
-                        "  hse kvdb create test\n"),
-                    kvdb_name);
                 break;
             default:
                 break;
@@ -691,6 +680,45 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
     printf("Successfully created KVDB %s\n", kvdb_name);
 
 done:
+    hse_params_destroy(hp);
+    return (herr || rc) ? -1 : 0;
+}
+
+static int
+cli_hse_kvdb_destroy_impl(struct cli *cli, const char *cfile, const char *kvdb_name)
+{
+    struct hse_params *hp = 0;
+    struct hse_kvdb *  db = 0;
+    hse_err_t          herr = 0;
+    int                rc = 0;
+
+    if (cli_hse_init(cli))
+        return -1;
+
+    hp = parse_cmdline_hse_params(cli, cfile, NULL);
+    if (!hp)
+        return EX_USAGE;
+
+    herr = hse_kvdb_open(kvdb_name, hp, &db);
+    if (herr) {
+        if (hse_err_to_errno(herr) != ENOENT)
+            print_hse_err(cli, "hse_kvdb_open", herr);
+        goto done;
+    }
+
+    herr = hse_kvdb_drop(db);
+    if (herr) {
+        if (hse_err_to_errno(herr) != ENOENT)
+            print_hse_err(cli, "hse_kvdb_drop", herr);
+        goto done;
+    }
+
+    printf("Successfully destroyed KVDB %s\n", kvdb_name);
+
+done:
+    if (herr && hse_err_to_errno(herr) == ENOENT)
+        fprintf(stderr, "Failed to destroy, KVDB '%s' doesn't exist\n", kvdb_name);
+
     hse_params_destroy(hp);
     return (herr || rc) ? -1 : 0;
 }
@@ -852,12 +880,6 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
             {
                 { NULL },
             },
-        .extra_help = {
-            "Notes:",
-            "  - An mpool must already exist with the same name as the KVDB being created.",
-            "  - Use 'mpool destroy <kvdb>' to destroy a KVDB.",
-            NULL,
-        },
     };
 
     bool        help = false;
@@ -889,6 +911,64 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
     }
 
     return cli_hse_kvdb_create_impl(cli, cfile, kvdb_name);
+}
+
+static int
+cli_hse_kvdb_destroy(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] <kvdb> [<config_param>=<value>]...",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                OPTION_CFILE,
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { "config", required_argument, 0, 'c' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    bool        help = false;
+    const char *cfile = 0;
+    const char *kvdb_name = 0;
+    int         c;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            case 'c':
+                cfile = optarg;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    kvdb_name = cli_next_arg(cli);
+
+    if (!kvdb_name || help) {
+        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
+    }
+
+    return cli_hse_kvdb_destroy_impl(cli, cfile, kvdb_name);
 }
 
 static int

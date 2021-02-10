@@ -64,7 +64,7 @@ mdc_correctness_simple(const char *mpool, const struct hse_params *params)
     }
 
     /* 2. Open the mpool */
-    err = mpool_open(mpool, params, 0, &mp);
+    err = mpool_open(mpool, params, O_CREAT, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -207,7 +207,7 @@ mdc_correctness_mp_release(const char *mpool, const struct hse_params *params)
     }
 
     /* 2. Open the mpool */
-    err = mpool_open(mpool, params, 0, &mp);
+    err = mpool_open(mpool, params, O_CREAT, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -379,7 +379,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
     }
 
     /* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, 0, &mp);
+    err = mpool_open(mpool, params, O_CREAT, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -643,7 +643,7 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
     }
 
     /* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, 0, &mp);
+    err = mpool_open(mpool, params, O_CREAT, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -823,7 +823,7 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 	}
 
 	/* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, 0, &mp);
+    err = mpool_open(mpool, params, O_CREAT, &mp);
 	if (err) {
 		original_err = err;
 		merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1005,7 +1005,7 @@ mdc_correctness_multi_mdc(const char *mpool, const struct hse_params *params)
 	}
 
 	/* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, 0, &mp);
+    err = mpool_open(mpool, params, O_CREAT, &mp);
 	if (err) {
 		original_err = err;
 		merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);

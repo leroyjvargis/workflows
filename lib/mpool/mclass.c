@@ -95,6 +95,7 @@ err_exit1:
     free(mc);
 
 err_exit2:
+    mclass_lockfile_rel(dirfd(dirp));
     closedir(dirp);
 
     return err;
@@ -144,11 +145,11 @@ mclass_params_set(struct media_class *mc, const char *key, const char *val, size
     dirfd = mclass_dirfd(mc);
 
     fd = openat(dirfd, key, O_CREAT | O_RDWR | O_SYNC | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fd < 0)
+    if (ev(fd < 0))
         return merr(errno);
 
     cc = pwrite(fd, val, len, 0);
-    if (cc != len) {
+    if (ev(cc != len)) {
         err = merr(errno);
         goto errout;
     }
@@ -169,11 +170,11 @@ mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len
     dirfd = mclass_dirfd(mc);
 
     fd = openat(dirfd, key, O_RDONLY);
-    if (fd < 0)
+    if (ev(fd < 0))
         return merr(errno);
 
     cc = pread(fd, val, len, 0);
-    if (cc < 0) {
+    if (ev(cc < 0)) {
         err = merr(errno);
         goto errout;
     }
@@ -182,6 +183,33 @@ errout:
     close(fd);
 
     return err;
+}
+
+static int
+params_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    if (strstr(path, "params-"))
+        return remove(path);
+
+    return 0;
+}
+
+merr_t
+mclass_params_remove(struct media_class *mc)
+{
+    const char *dpath;
+    int rc;
+
+    if (ev(!mc))
+        return merr(EINVAL);
+
+    dpath = mclass_dpath(mc);
+
+    rc = nftw(dpath, params_removecb, 8, FTW_DEPTH | FTW_PHYS);
+    if (ev(rc < 0))
+        return merr(rc);
+
+    return 0;
 }
 
 int

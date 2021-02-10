@@ -34,7 +34,7 @@ struct hse_params;
  * @mp:      mpool handle (output)
  *
  * Flags are limited to a subset of flags allowed by open(2):
- * O_RDONLY, O_WRONLY, and O_RDWR.
+ * O_CREAT, O_RDONLY, O_WRONLY, and O_RDWR.
  */
 /* MTF_MOCK */
 merr_t

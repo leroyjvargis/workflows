@@ -112,8 +112,16 @@ mpool_destroy(struct mpool *mp)
 
     mpool_mdc_root_destroy(mp);
 
-    for (i = MCID_MAX - 1; i >= MCID_CAPACITY; i--)
-        mclass_destroy(mp->mc[i]);
+    for (i = MCID_MAX - 1; i >= MCID_CAPACITY; i--) {
+        struct media_class *mc;
+
+        mc = mp->mc[i];
+
+        if (i == MCID_CAPACITY)
+            mclass_params_remove(mc);
+
+        mclass_destroy(mc);
+    }
 
     free(mp);
 
@@ -129,7 +137,8 @@ mpool_params_get2(struct mpool *mp, struct mpool_params *params)
     memset(params, 0, sizeof(*params));
 
     /* Fill utype if present. */
-    err = mclass_params_get(mp->mc[MCID_CAPACITY], "utype", (char *)ubuf, sizeof(ubuf) - 1);
+    err = mclass_params_get(mp->mc[MCID_CAPACITY], "params-utype",
+                            (char *)ubuf, sizeof(ubuf) - 1);
     if (!err) {
         ubuf[UUID_STRLEN] = '\0';
         uuid_parse((const char *)ubuf, params->mp_utype);
@@ -146,7 +155,7 @@ mpool_params_set2(struct mpool *mp, struct mpool_params *params)
 
         uuid_unparse(params->mp_utype, ubuf);
 
-        return mclass_params_set(mp->mc[MCID_CAPACITY], "utype",
+        return mclass_params_set(mp->mc[MCID_CAPACITY], "params-utype",
                                  (const char *)ubuf, sizeof(ubuf) - 1);
     }
 

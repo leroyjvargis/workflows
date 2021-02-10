@@ -76,6 +76,9 @@ mclass_params_set(struct media_class *mc, const char *key, const char *val, size
 merr_t
 mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len);
 
+merr_t
+mclass_params_remove(struct media_class *mc);
+
 /**
  * mclass_id() - get mclass id
  *

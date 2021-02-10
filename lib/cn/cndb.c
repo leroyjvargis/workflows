@@ -232,9 +232,9 @@ errout:
 }
 
 merr_t
-cndb_drop(struct mpool *ds, u64 oid1, u64 oid2)
+cndb_drop(struct mpool *mp, u64 oid1, u64 oid2)
 {
-    return 0;
+    return mpool_mdc_delete(mp, oid1, oid2);
 }
 
 /* PRIVATE */
