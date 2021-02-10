@@ -20,9 +20,9 @@ mdc_mclass_get(struct mpool_mdc *mdc)
 }
 
 merr_t
-mpool_mdc_alloc2(
+mpool_mdc_alloc(
 	struct mpool           *mp,
-    u32                     magic,
+    uint32_t                magic,
     size_t                  capacity,
 	enum mp_media_classp    mclassp,
     uint64_t               *logid1,
@@ -59,7 +59,7 @@ mpool_mdc_alloc2(
 }
 
 merr_t
-mpool_mdc_commit2(struct mpool *mp, uint64_t logid1, uint64_t logid2)
+mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
     enum mclass_id mcid;
 	merr_t err;
@@ -85,7 +85,7 @@ mpool_mdc_commit2(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 }
 
 merr_t
-mpool_mdc_delete2(struct mpool *mp, uint64_t logid1, uint64_t logid2)
+mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
     enum mclass_id mcid;
     merr_t err, rval=0;
@@ -108,13 +108,13 @@ mpool_mdc_delete2(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 }
 
 merr_t
-mpool_mdc_abort2(struct mpool *mp, uint64_t logid1, uint64_t logid2)
+mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
-    return mpool_mdc_delete2(mp, logid1, logid2);
+    return mpool_mdc_delete(mp, logid1, logid2);
 }
 
 merr_t
-mpool_mdc_open2(
+mpool_mdc_open(
     struct mpool        *mp,
     uint64_t             logid1,
     uint64_t             logid2,
@@ -236,7 +236,7 @@ mpool_mdc_open2(
 }
 
 merr_t
-mpool_mdc_close2(struct mpool_mdc *mdc)
+mpool_mdc_close(struct mpool_mdc *mdc)
 {
     merr_t err, rval = 0;
 
@@ -265,7 +265,7 @@ mpool_mdc_close2(struct mpool_mdc *mdc)
 }
 
 merr_t
-mpool_mdc_cstart2(struct mpool_mdc *mdc)
+mpool_mdc_cstart(struct mpool_mdc *mdc)
 {
     struct mdc_file *tgth;
     merr_t err;
@@ -283,7 +283,7 @@ mpool_mdc_cstart2(struct mpool_mdc *mdc)
     err = mdc_file_sync(tgth);
     if (ev(err)) {
         mutex_unlock(&mdc->lock);
-        mpool_mdc_close2(mdc);
+        mpool_mdc_close(mdc);
 
         return err;
     }
@@ -296,7 +296,7 @@ mpool_mdc_cstart2(struct mpool_mdc *mdc)
 }
 
 merr_t
-mpool_mdc_cend2(struct mpool_mdc *mdc)
+mpool_mdc_cend(struct mpool_mdc *mdc)
 {
     struct mdc_file  *srch, *tgth;
     merr_t err;
@@ -324,7 +324,7 @@ mpool_mdc_cend2(struct mpool_mdc *mdc)
 
     if (ev(err)) {
         mutex_unlock(&mdc->lock);
-        mpool_mdc_close2(mdc);
+        mpool_mdc_close(mdc);
 
         return err;
     }
@@ -383,12 +383,12 @@ mpool_mdc_root_init(struct mpool *mp)
 
     err = mdc_exists(mp, id[0], id[1], &exist);
     if (!err && !exist) {
-        err = mpool_mdc_alloc2(mp, MDC_ROOT_MAGIC, MPOOL_ROOT_LOG_CAP,
+        err = mpool_mdc_alloc(mp, MDC_ROOT_MAGIC, MPOOL_ROOT_LOG_CAP,
                                MCID_CAPACITY, &id[0], &id[1]);
         if (ev(err))
             return err;
 
-        err = mpool_mdc_commit2(mp, id[0], id[1]);
+        err = mpool_mdc_commit(mp, id[0], id[1]);
         if (ev(err))
             return err;
     }
@@ -406,7 +406,7 @@ mpool_mdc_root_destroy(struct mpool *mp)
     if (ev(err))
         return err;
 
-    err = mpool_mdc_delete2(mp, id[0], id[1]);
+    err = mpool_mdc_delete(mp, id[0], id[1]);
     if (ev(err))
         return err;
 
@@ -433,7 +433,7 @@ mpool_mdc_sync2(struct mpool_mdc *mdc)
 }
 
 merr_t
-mpool_mdc_rewind2(struct mpool_mdc *mdc)
+mpool_mdc_rewind(struct mpool_mdc *mdc)
 {
     merr_t err;
 
@@ -452,7 +452,7 @@ mpool_mdc_rewind2(struct mpool_mdc *mdc)
 }
 
 merr_t
-mpool_mdc_read2(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
+mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 {
     merr_t err;
     bool verify = false;
@@ -473,7 +473,7 @@ mpool_mdc_read2(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 }
 
 merr_t
-mpool_mdc_append2(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
+mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 {
     merr_t err;
 
@@ -493,7 +493,7 @@ mpool_mdc_append2(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 }
 
 merr_t
-mpool_mdc_usage2(struct mpool_mdc *mdc, size_t *usage)
+mpool_mdc_usage(struct mpool_mdc *mdc, size_t *usage)
 {
     merr_t err;
 

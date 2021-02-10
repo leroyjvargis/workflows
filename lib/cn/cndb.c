@@ -11,8 +11,6 @@
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
 
-#include <mpool/mpool2.h>
-
 #define MTF_MOCK_IMPL_cndb
 #define MTF_MOCK_IMPL_cndb_internal
 
@@ -158,7 +156,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
     if (staging_absent)
         mclassp = MP_MED_CAPACITY;
 
-    err = mpool_mdc_alloc2(ds, CNDB_MAGIC, capacity, mclassp, oid1_out, oid2_out);
+    err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclassp, oid1_out, oid2_out);
     if (ev(err)) {
         hse_elog(
             HSE_ERR "%s: cannot allocate cNDB MDC (%lld): @@e",
@@ -185,14 +183,14 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 
     captgt = captgt ?: CNDB_CAPTGT_DEFAULT;
 
-    err = mpool_mdc_commit2(ds, oid1, oid2);
+    err = mpool_mdc_commit(ds, oid1, oid2);
     if (err) {
         hse_elog(
             HSE_ERR "%s: cannot commit cNDB MDC (%lld): @@e", err, __func__, (long long int)captgt);
         return err;
     }
 
-    err = mpool_mdc_open2(ds, oid1, oid2, &mdc);
+    err = mpool_mdc_open(ds, oid1, oid2, &mdc);
     if (err) {
         hse_elog(HSE_ERR "%s: cannot open cNDB MDC: @@e", err, __func__);
         return err;
@@ -203,18 +201,18 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
     omf_set_cnver_version(&ver, CNDB_VERSION);
     omf_set_cnver_captgt(&ver, captgt);
 
-    err = mpool_mdc_append2(mdc, &ver, sizeof(ver), true);
+    err = mpool_mdc_append(mdc, &ver, sizeof(ver), true);
     if (ev(err))
         goto errout;
 
     cndb_set_hdr(&meta.hdr, CNDB_TYPE_META, sizeof(meta));
     omf_set_cnmeta_seqno_max(&meta, 0);
 
-    err = mpool_mdc_append2(mdc, &meta, sizeof(meta), true);
+    err = mpool_mdc_append(mdc, &meta, sizeof(meta), true);
     if (ev(err))
         goto errout;
 
-    err2 = mpool_mdc_close2(mdc);
+    err2 = mpool_mdc_close(mdc);
     if (err2) {
         hse_elog(HSE_ERR "%s: MDC close failed: @@e", err, __func__);
         if (!err)
@@ -226,7 +224,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 errout:
     hse_elog(
         HSE_ERR "%s: MDC append (%lx, %lx) failed: @@e", err, __func__, (ulong)oid1, (ulong)oid2);
-    err2 = mpool_mdc_delete2(ds, oid1, oid2);
+    err2 = mpool_mdc_delete(ds, oid1, oid2);
     if (err2)
         hse_elog(
             HSE_ERR "%s: destroy (%lx,%lx) failed: @@e", err2, __func__, (ulong)oid1, (ulong)oid2);
@@ -336,7 +334,7 @@ cndb_open(
         goto errout;
     }
 
-    err = mpool_mdc_open2(ds, oid1, oid2, &cndb->cndb_mdc);
+    err = mpool_mdc_open(ds, oid1, oid2, &cndb->cndb_mdc);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " mdc open failed");
         goto errout;
@@ -2024,7 +2022,7 @@ cndb_read(struct cndb *cndb, size_t *len)
     void * p; /* because checkfiles said so */
 
     do {
-        err = mpool_mdc_read2(cndb->cndb_mdc, cndb->cndb_cbuf, cndb->cndb_cbufsz, len);
+        err = mpool_mdc_read(cndb->cndb_mdc, cndb->cndb_cbuf, cndb->cndb_cbufsz, len);
         if (merr_errno(err) == EOVERFLOW) {
             p = realloc(cndb->cndb_cbuf, *len);
             if (!p) {
@@ -2613,7 +2611,7 @@ cndb_rollover(struct cndb *cndb)
         goto errout;
     }
 
-    err = mpool_mdc_cstart2(cndb->cndb_mdc);
+    err = mpool_mdc_cstart(cndb->cndb_mdc);
     if (err) {
         cndb->cndb_mdc = NULL; /* cstart closes the MDC on error */
         CNDB_LOG(err, cndb, HSE_ERR, " cstart failed");
@@ -2626,7 +2624,7 @@ cndb_rollover(struct cndb *cndb)
     omf_set_cnver_version(ver, CNDB_VERSION);
     omf_set_cnver_captgt(ver, cndb->cndb_captgt);
 
-    err = mpool_mdc_append2(cndb->cndb_mdc, ver, sizeof(*ver), false);
+    err = mpool_mdc_append(cndb->cndb_mdc, ver, sizeof(*ver), false);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " version write failed");
         goto errout;
@@ -2636,7 +2634,7 @@ cndb_rollover(struct cndb *cndb)
     cndb_set_hdr(&meta->hdr, CNDB_TYPE_META, sizeof(*meta));
     omf_set_cnmeta_seqno_max(meta, max_t(u64, cndb->cndb_seqno, cndb_ikvdb_seqno_get(cndb)));
 
-    err = mpool_mdc_append2(cndb->cndb_mdc, meta, sizeof(*meta), false);
+    err = mpool_mdc_append(cndb->cndb_mdc, meta, sizeof(*meta), false);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " meta write failed");
         goto errout;
@@ -2670,7 +2668,7 @@ cndb_rollover(struct cndb *cndb)
         sz = cn->cn_cbufsz;
         cndb_info2omf(CNDB_TYPE_INFO, cn, inf);
 
-        err = mpool_mdc_append2(cndb->cndb_mdc, inf, sz, false);
+        err = mpool_mdc_append(cndb->cndb_mdc, inf, sz, false);
         if (err) {
             CNDB_LOG(err, cndb, HSE_ERR, " info %lu failed", (ulong)cn->cn_cnid);
             goto errout;
@@ -2705,7 +2703,7 @@ cndb_rollover(struct cndb *cndb)
         }
 
         sz = omf_cnhdr_len(buf) + sizeof(struct cndb_hdr_omf);
-        err = mpool_mdc_append2(cndb->cndb_mdc, buf, sz, false);
+        err = mpool_mdc_append(cndb->cndb_mdc, buf, sz, false);
         if (err) {
             CNDB_LOGTX(err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " append failed (keepv)");
             goto errout;
@@ -2723,14 +2721,14 @@ cndb_rollover(struct cndb *cndb)
         }
 
         sz = omf_cnhdr_len(buf) + sizeof(struct cndb_hdr_omf);
-        err = mpool_mdc_append2(cndb->cndb_mdc, buf, sz, false);
+        err = mpool_mdc_append(cndb->cndb_mdc, buf, sz, false);
         if (err) {
             CNDB_LOGTX(err, cndb, mtxid(cndb->cndb_keepv[i]), HSE_ERR, " append failed (workv)");
             goto errout;
         }
     }
 
-    err = mpool_mdc_cend2(cndb->cndb_mdc);
+    err = mpool_mdc_cend(cndb->cndb_mdc);
     if (err) {
         cndb->cndb_mdc = NULL; /* cend closes the MDC on error */
         CNDB_LOG(err, cndb, HSE_ERR, " cend failed");
@@ -2775,7 +2773,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         goto errout;
     }
 
-    err = mpool_mdc_usage2(cndb->cndb_mdc, &usage);
+    err = mpool_mdc_usage(cndb->cndb_mdc, &usage);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
         goto errout;
@@ -2801,7 +2799,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
             goto errout;
         }
 
-        err = mpool_mdc_usage2(cndb->cndb_mdc, &usage);
+        err = mpool_mdc_usage(cndb->cndb_mdc, &usage);
         if (err) {
             CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
             goto errout;
@@ -2866,7 +2864,7 @@ accept_record:
         assert(count <= cndb->cndb_entries);
     }
 
-    err = mpool_mdc_append2(cndb->cndb_mdc, data, sz, true);
+    err = mpool_mdc_append(cndb->cndb_mdc, data, sz, true);
     if (err) {
         struct cndb_hdr_omf *hdr = data;
 
@@ -2923,7 +2921,7 @@ cndb_close(struct cndb *cndb)
     mutex_lock(&cndb->cndb_lock);
 
     if (cndb->cndb_mdc) {
-        err = mpool_mdc_close2(cndb->cndb_mdc);
+        err = mpool_mdc_close(cndb->cndb_mdc);
         if (err)
             CNDB_LOG(err, cndb, HSE_ERR, " MDC close failed");
     }

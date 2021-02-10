@@ -16,6 +16,7 @@
 struct mpool;                   /* opaque mpool handle */
 struct mpool_mdc;               /* opaque MDC (metadata container) handle */
 struct mpool_mcache_map;        /* opaque mcache map handle */
+struct hse_params;
 
 #define MPOOL_RUNDIR_ROOT       "/var/run/mpool"
 
@@ -26,26 +27,36 @@ struct mpool_mcache_map;        /* opaque mcache map handle */
  */
 
 /**
- * mpool_create() - Create an mpool in the default media class
+ * mpool_open() - Open an mpool
  * @mpname:  mpool name
- * @devname: device name
- * @params:  mpool params
- * @flags:   mpool management flags
- */
-merr_t
-mpool_create(
-	const char             *mpname,
-	const char             *devname,
-	struct mpool_params    *params,
-	uint32_t                flags);
-
-/**
- * mpool_destroy() - Deactivate and destroy an mpool
- * @mpname: mpool name
- * @flags:  mpool management flags
+ * @params:  hse params
+ * @flags:   open flags
+ * @mp:      mpool handle (output)
+ *
+ * Flags are limited to a subset of flags allowed by open(2):
+ * O_RDONLY, O_WRONLY, and O_RDWR.
  */
 /* MTF_MOCK */
-merr_t mpool_destroy(const char *mpname, uint32_t flags);
+merr_t
+mpool_open(
+    const char                  *name,
+    const struct hse_params     *params,
+    uint32_t                     flags,
+    struct mpool               **handle);
+
+/**
+ * mpool_close() - Close an mpool
+ * @mp: mpool handle
+ */
+/* MTF_MOCK */
+merr_t mpool_close(struct mpool *mp);
+
+/**
+ * mpool_destroy() - Destroy an mpool
+ * @mp: mpool handle
+ */
+/* MTF_MOCK */
+merr_t mpool_destroy(struct mpool *mp);
 
 /**
  * mpool_mclass_add() - Add a media class to an mpool
@@ -83,30 +94,6 @@ merr_t mpool_scan(int *propcp, struct mpool_params **propvp);
  * %mpool_list retrieves the list of active mpools from the mpool kernel module.
  */
 merr_t mpool_list(int *propcp, struct mpool_params **propvp);
-
-/**
- * mpool_open() - Open an mpool
- * @mp_name: mpool name
- * @flags:   open flags
- * @mp:      mpool handle (output)
- *
- * Flags are limited to a subset of flags allowed by open(2):
- * O_RDONLY, O_WRONLY, O_RDWR, and O_EXCL.
- *
- * If the O_EXCL flag is given on first open then all subsequent calls to
- * @mpool_open() will fail with -EBUSY.  Similarly, if the mpool is open in
- * shared mode then specifying the O_EXCL flag will fail with -EBUSY.
- */
-/* MTF_MOCK */
-merr_t
-mpool_open(const char *mpname, uint32_t flags, struct mpool **mp);
-
-/**
- * mpool_close() - Close an mpool
- * @mp: mpool handle
- */
-/* MTF_MOCK */
-merr_t mpool_close(struct mpool *mp);
 
 /**
  * mpool_mclass_get() - get properties of the specified media class
@@ -160,28 +147,28 @@ mpool_params_set(struct mpool *mp, struct mpool_params *params);
 
 /**
  * mpool_mdc_alloc() - Alloc an MDC
- * @mp:      mpool handle
- * @logid1:  Mlog ID 1
- * @logid2:  Mlog ID 2
- * @mclassp: media class
- * @capreq:  capacity requirements
- * @props:   MDC properties
+ * @mp:       mpool handle
+ * @magic:    MDC magic
+ * @capacity: capacity (bytes)
+ * @mclassp:  media class
+ * @logid1 (output): logid 1
+ * @logid2 (output): logid 2
  */
 /* MTF_MOCK */
 merr_t
 mpool_mdc_alloc(
 	struct mpool               *mp,
-	uint64_t                   *logid1,
-	uint64_t                   *logid2,
+	uint32_t                    magic,
+	size_t                      capacity,
 	enum mp_media_classp        mclassp,
-	const struct mdc_capacity  *capreq,
-	struct mdc_props           *props);
+	uint64_t                   *logid1,
+	uint64_t                   *logid2);
 
 /**
  * mpool_mdc_commit() - Commit an MDC
  * @mp:     mpool handle
- * @logid1: Mlog ID 1
- * @logid2: Mlog ID 2
+ * @logid1: logid 1
+ * @logid2: logid 2
  */
 /* MTF_MOCK */
 merr_t mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2);
@@ -189,36 +176,35 @@ merr_t mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 /**
  * mpool_mdc_abort() - Abort an MDC
  * @mp:     mpool handle
- * @logid1: Mlog ID 1
- * @logid2: Mlog ID 2
+ * @logid1: logid 1
+ * @logid2: logid 2
  */
 merr_t mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 
 /**
  * mpool_mdc_delete() - Delete an MDC
  * @mp:     mpool handle
- * @logid1: Mlog ID 1
- * @logid2: Mlog ID 2
+ * @logid1: logid 1
+ * @logid2: logid 2
  */
 /* MTF_MOCK */
 merr_t mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 
 /**
- * mpool_mdc_get_root() - Retrieve mpool root MDC OIDs
+ * mpool_mdc_rootid_get() - Retrieve mpool root MDC OIDs
  * @mp:     mpool handle
- * @logid1: Mlog ID 1
- * @logid2: Mlog ID 2
+ * @logid1: logid 1
+ * @logid2: logid 2
  */
 /* MTF_MOCK */
-merr_t mpool_mdc_get_root(struct mpool *mp, uint64_t *logid1, uint64_t *logid2);
+merr_t mpool_mdc_rootid_get(struct mpool *mp, uint64_t *logid1, uint64_t *logid2);
 
 /**
  * mpool_mdc_open() - Open MDC by OIDs
  * @mp:      mpool handle
- * @logid1:  Mlog ID 1
- * @logid2:  Mlog ID 2
- * @flags:   MDC Open flags (enum mdc_open_flags)
- * @mdc_out: MDC handle
+ * @logid1:  logid 1
+ * @logid2:  logid 2
+ * @handle : MDC handle
  */
 /* MTF_MOCK */
 merr_t
@@ -226,8 +212,7 @@ mpool_mdc_open(
 	struct mpool        *mp,
 	uint64_t             logid1,
 	uint64_t             logid2,
-	uint8_t              flags,
-	struct mpool_mdc   **mdc_out);
+	struct mpool_mdc   **handle);
 
 /**
  * mpool_mdc_close() - Close MDC
@@ -264,7 +249,7 @@ merr_t mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdl
  * @sync: flag to defer return until IO is complete
  */
 /* MTF_MOCK */
-merr_t mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync);
+merr_t mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync);
 /**
  * mpool_mdc_cstart() - Initiate MDC compaction
  * @mdc: MDC handle

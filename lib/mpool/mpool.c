@@ -20,7 +20,11 @@
 #define UUID_STRLEN    36
 
 merr_t
-mpool_open2(const char *name, const struct hse_params *params, int flags, struct mpool **handle)
+mpool_open(
+    const char                  *name,
+    const struct hse_params     *params,
+    uint32_t                     flags,
+    struct mpool               **handle)
 {
     struct mpool *mp;
 
@@ -77,7 +81,7 @@ errout:
 }
 
 merr_t
-mpool_close2(struct mpool *mp)
+mpool_close(struct mpool *mp)
 {
     merr_t err = 0;
     int i;
@@ -99,7 +103,7 @@ mpool_close2(struct mpool *mp)
 }
 
 merr_t
-mpool_destroy2(struct mpool *mp)
+mpool_destroy(struct mpool *mp)
 {
     int i;
 

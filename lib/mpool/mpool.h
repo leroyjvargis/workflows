@@ -6,7 +6,7 @@
 #ifndef MPOOL_H
 #define MPOOL_H
 
-#include <mpool/mpool2.h>
+#include <mpool/mpool_internal.h>
 
 #include "mclass.h"
 
