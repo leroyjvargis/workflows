@@ -267,15 +267,28 @@ mpool_mdc_close2(struct mpool_mdc *mdc)
 merr_t
 mpool_mdc_cstart2(struct mpool_mdc *mdc)
 {
+    struct mdc_file *tgth;
+    merr_t err;
+
     if (ev(!mdc))
         return merr(EINVAL);
 
     mutex_lock(&mdc->lock);
 
     if (mdc->mfpa == mdc->mfp1)
-        mdc->mfpa = mdc->mfp2;
+        tgth = mdc->mfp2;
     else
-        mdc->mfpa = mdc->mfp1;
+        tgth = mdc->mfp1;
+
+    err = mdc_file_sync(tgth);
+    if (ev(err)) {
+        mutex_unlock(&mdc->lock);
+        mpool_mdc_close2(mdc);
+
+        return err;
+    }
+
+    mdc->mfpa = tgth;
 
     mutex_unlock(&mdc->lock);
 
@@ -302,15 +315,19 @@ mpool_mdc_cend2(struct mpool_mdc *mdc)
         srch = mdc->mfp1;
     }
 
-    err = mdc_file_gen(tgth, &gentgt);
+    err = mdc_file_sync(tgth);
+    if (!err) {
+        err = mdc_file_gen(tgth, &gentgt);
+        if (!err)
+            err = mdc_file_erase(srch, gentgt + 1);
+    }
+
     if (ev(err)) {
         mutex_unlock(&mdc->lock);
         mpool_mdc_close2(mdc);
 
         return err;
     }
-
-    err = mdc_file_erase(srch, gentgt + 1);
 
     mutex_unlock(&mdc->lock);
 

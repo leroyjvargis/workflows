@@ -52,6 +52,7 @@ mpool_open2(const char *name, const struct hse_params *params, int flags, struct
     }
 
     if (!mp->mc[MCID_CAPACITY]) {
+        err = merr(EINVAL);
         hse_log(HSE_ERR "Capacity mclass path is missing for mpool %s", name);
         goto errout;
     }

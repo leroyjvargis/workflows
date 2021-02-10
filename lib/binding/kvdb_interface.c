@@ -220,7 +220,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds);
+    err = mpool_open2(mpool_name, params, O_RDWR, &kvdb_ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -270,7 +270,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     return 0;
 
 close_ds:
-    mpool_close(kvdb_ds);
+    mpool_close2(kvdb_ds);
 
     return merr_to_hse_err(err);
 }
@@ -292,7 +292,7 @@ hse_kvdb_close(struct hse_kvdb *handle)
     err = ikvdb_close((struct ikvdb *)handle);
     ev(err);
 
-    err2 = mpool_close(ds);
+    err2 = mpool_close2(ds);
     ev(err2);
 
     return err ? merr_to_hse_err(err) : merr_to_hse_err(err2);

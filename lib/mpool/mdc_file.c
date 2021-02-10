@@ -419,6 +419,10 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
     if (ev(rc < 0))
         err = merr(errno);
 
+    mfp->woff = MDC_LOGHDR_LEN;
+    mfp->roff = MDC_LOGHDR_LEN;
+    mfp->raoff = MDC_RA_BYTES;
+
     return err;
 }
 
@@ -566,8 +570,11 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen, bool 
     }
 
     omf_mdc_rechdr_unpack_letoh(&rh, (const char *)addr);
-    if (rh.size == 0 && rh.crc == 0)
-        return merr(ENOMSG);
+    if (rh.size == 0 && rh.crc == 0) { /* Reached end of log */
+        if (rdlen)
+            *rdlen = 0;
+        return 0;
+    }
 
     if (rdlen)
         *rdlen = rh.size;
