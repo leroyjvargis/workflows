@@ -696,13 +696,12 @@ done:
 }
 
 static int
-cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name)
+cli_hse_kvdb_list_impl(struct cli *cli, const char *cfile, const char *kvdb_name)
 {
     struct hse_params  *hp = 0;
     char                buf[YAML_BUF_SIZE];
     int                 rc;
     int                 count;
-    const char         *extra_arg;
 
     struct yaml_context yc = {
         .yaml_buf = buf,
@@ -712,17 +711,10 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name)
         .yaml_emit = yaml_print_and_rewind,
     };
 
-    extra_arg = cli_next_arg(cli);
-    if (extra_arg) {
-        fprintf(stderr, "%s: unexpected parameter: '%s', use -h for help.\n",
-            cli->cmd->cmd_path, extra_arg);
-        return EX_USAGE;
-    }
-
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(cli, NULL, "kvdb.excl=1", "kvdb.rdonly=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", "kvdb.rdonly=1", 0);
     if (!hp)
         return EX_USAGE;
 
@@ -911,12 +903,14 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
+                OPTION_CFILE,
                 { "[-v|--verbose]", "Print KVDB details" },
                 { NULL },
             },
         .longoptv =
             {
                 { "help", no_argument, 0, 'h' },
+                { "config", required_argument, 0, 'c' },
                 { "verbose", no_argument, 0, 'v' },
                 { NULL },
             },
@@ -926,6 +920,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
             },
     };
 
+    const char *cfile = 0;
     const char *kvdb_name = 0;
     bool        help = false;
     int         c;
@@ -937,6 +932,9 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
         switch (c) {
             case 'h':
                 help = true;
+                break;
+            case 'c':
+                cfile = optarg;
                 break;
             case 'v':
                 ++verbosity;
@@ -954,7 +952,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
         return 0;
     }
 
-    return cli_hse_kvdb_list_impl(cli, kvdb_name);
+    return cli_hse_kvdb_list_impl(cli, cfile, kvdb_name);
 }
 
 static int
