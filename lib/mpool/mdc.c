@@ -125,9 +125,7 @@ mpool_mdc_open(
 
     enum mclass_id mcid;
     merr_t  err, err1, err2;
-    uint64_t gen1 = 0, gen2 = 0;
-    bool empty = false;
-    int dirfd;
+    uint64_t gen1, gen2;
 
     if (ev(!mp || !handle || logid1 == logid2))
         return merr(EINVAL);
@@ -139,7 +137,6 @@ mpool_mdc_open(
     mdc->mp = mp;
     mcid = logid_mcid(logid1);
     mdc->mc = mpool_mch_get(mp, mcid);
-    dirfd = mclass_dirfd(mdc->mc);
 
     err1 = mdc_file_open(mdc, logid1, &gen1, &mfp[0]);
     err2 = mdc_file_open(mdc, logid2, &gen2, &mfp[1]);
@@ -152,68 +149,26 @@ mpool_mdc_open(
                  logid1, logid2, gen1, gen2);
     } else {
         /* active log is valid log with smallest gen */
-        if (err1 || (!err2 && gen2 < gen1)) {
+        if (gen2 < gen1) {
             mdc->mfpa = mfp[1];
-            if (!err1) {
-                err = mdc_file_empty(mfp[0], &empty);
-                if (err)
-                    hse_elog(HSE_ERR
-                             "mdc file1 logid %lu gen (%lu, %lu) empty check failed: @@e",
-                             err, logid1, gen1, gen2);
-            }
-            if (!err && (err1 || !empty)) {
-                if (err1) {
-                    err = mdc_file_erase_byid(dirfd, logid1, gen2 + 1);
-                } else {
-                    err = mdc_file_erase(mfp[0], gen2 + 1);
-                    if (!err)
-                        mdc_file_close(mfp[0]);
-                }
 
-                if (!err) {
-                    err = mdc_file_open(mdc, logid1, &gen1, &mfp[0]);
-                    if (err)
-                        hse_elog(HSE_ERR
-                                 "mdc file1 logid %lu gen (%lu, %lu) open failed: @@e",
-                                 err, logid1, gen1, gen2);
-                } else {
-                        hse_elog(HSE_ERR
-                                 "mdc file1 logid %lu gen (%lu, %lu) erase failed: @@e",
-                                 err, logid1, gen1, gen2);
-                }
-            }
+            /**
+             * Unconditionally erase the passive log.
+             * This handles the following crash scenarios:
+             * 1. Crash after mdc_cstart but before mdc_cend()
+             * 2. Crash after gen update and during passive log erase
+             * 3. Crash after passive log erase
+             */
+            err = mdc_file_erase(mfp[0], gen2 + 1);
+            if (err)
+                hse_elog(HSE_ERR "mdc file1 logid %lu erase failed: @@e", err, logid1);
         } else {
             mdc->mfpa = mfp[0];
-            if (!err2) {
-                err = mdc_file_empty(mfp[1], &empty);
-                if (err)
-                    hse_elog(HSE_ERR
-                             "mdc file2 logid %lu gen (%lu, %lu) empty check failed: @@e",
-                             err, logid2, gen1, gen2);
-            }
-            if (!err && (err2 || gen2 == gen1 || !empty)) {
-                if (err2) {
-                    err = mdc_file_erase_byid(dirfd, logid2, gen1 + 1);
-                } else {
-                    err = mdc_file_erase(mfp[1], gen1 + 1);
-                    if (!err)
-                        mdc_file_close(mfp[1]);
-                }
 
-                if (!err) {
-                    err = mdc_file_open(mdc, logid2, &gen2, &mfp[1]);
-                    if (err)
-                        hse_elog(HSE_ERR
-                                 "mdc file2 logid %lu gen (%lu, %lu) open failed: @@e",
-                                 err, logid2, gen1, gen2);
-                } else {
-                    hse_elog(HSE_ERR
-                             "mdc file2 logid %lu gen (%lu, %lu) erase failed: @@e",
-                             err, logid2, gen1, gen2);
-                }
-            }
+            err = mdc_file_erase(mfp[1], gen1 + 1);
+            if (err)
+                hse_elog(HSE_ERR "mdc file2 logid %lu erase failed: @@e", err, logid2);
         }
-
     }
 
     if (!err) {

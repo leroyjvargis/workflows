@@ -427,41 +427,6 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
 }
 
 merr_t
-mdc_file_erase_byid(int dirfd, uint64_t logid, uint64_t newgen)
-{
-    struct mdc_loghdr lh;
-    merr_t err = 0;
-    int fd, rc;
-    char name[32];
-    size_t sz;
-
-    mdc_filename_gen(name, sizeof(name), logid);
-
-    fd = openat(dirfd, name, O_RDWR);
-    if (ev(fd < 0)) {
-        err = merr(errno);
-        return err;
-    }
-
-    err = mdc_file_size(fd, &sz);
-    if (ev(err))
-        goto errout;
-
-    err = loghdr_update_byfd(fd, &lh, newgen);
-    if (ev(err))
-        goto errout;
-
-    rc = fallocate(fd, FALLOC_FL_ZERO_RANGE, MDC_LOGHDR_LEN, sz - MDC_LOGHDR_LEN);
-    if (ev(rc < 0))
-        err = merr(errno);
-
-errout:
-    close(fd);
-
-    return err;
-}
-
-merr_t
 mdc_file_gen(struct mdc_file *mfp, uint64_t *gen)
 {
     if (ev(!mfp || !gen))
