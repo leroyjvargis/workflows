@@ -78,8 +78,6 @@ hse_kvdb_init(void)
     if (err)
         return merr_to_hse_err(err);
 
-    crc32c_init();
-
     err = ikvdb_init();
     if (err) {
         hse_platform_fini();

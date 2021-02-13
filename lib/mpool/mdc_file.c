@@ -109,9 +109,9 @@ logrec_crc_get(const uint8_t *data1, size_t len1, const uint8_t *data2, size_t l
 {
     uint32_t crc;
 
-    crc = crc32c_sw(0, data1, len1);
+    crc = crc32c(0, data1, len1);
 
-    return crc32c_sw(crc, data2, len2);
+    return crc32c(crc, data2, len2);
 }
 
 static merr_t

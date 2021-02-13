@@ -12,7 +12,7 @@
 static uint32_t
 omf_loghdr_crc_get(struct mdc_loghdr_omf *lhomf)
 {
-    return crc32c_sw(0, (const uint8_t *)lhomf, offsetof(struct mdc_loghdr_omf, lh_crc));
+    return crc32c(0, (const uint8_t *)lhomf, offsetof(struct mdc_loghdr_omf, lh_crc));
 }
 
 merr_t
