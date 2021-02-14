@@ -30,18 +30,17 @@ u32 pattern_len;
 int pattern_base(char *base)
 {
 	int i;
-	int len = strlen(base);
 
-	if (len == 0)
+	if (!base)
 		pattern_len = 16;
 	else
-		pattern_len = len;
+		pattern_len = strlen(base);
 
 	pattern = malloc(pattern_len);
 	if (pattern == NULL)
 		return -1;
 
-	if (len == 0) {	           /* No pattern given, so make one up */
+	if (!base) {	           /* No pattern given, so make one up */
 		for (i = 0; i < pattern_len; i++)
 			pattern[i] = i % 256;
 	} else {
