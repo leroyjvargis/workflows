@@ -483,6 +483,10 @@ mdc_file_sync(struct mdc_file *mfp)
     if (ev(rc < 0))
         return merr(errno);
 
+    rc = fsync(mfp->fd);
+    if (ev(rc < 0))
+        return merr(errno);
+
     return 0;
 }
 
@@ -567,17 +571,42 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen, bool 
     return 0;
 }
 
-merr_t
-mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
+static merr_t
+mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
+{
+    struct mdc_rechdr_omf rhomf = {};
+    struct iovec iov[2];
+    const struct io_ops *io;
+
+    merr_t err;
+    uint32_t crc;
+
+    omf_set_rh_size(&rhomf, len);
+
+    crc = logrec_crc_get((const uint8_t *)&rhomf.rh_size, sizeof(rhomf.rh_size), data, len);
+    omf_set_rh_crc(&rhomf, crc);
+
+    iov[0].iov_base = &rhomf;
+    iov[0].iov_len = omf_mdc_rechdr_len();
+
+    iov[1].iov_base = data;
+    iov[1].iov_len = len;
+
+    io = mfp->io;
+    err = io->write(mfp->fd, mfp->woff, (const struct iovec *)&iov, 2, 0);
+    if (ev(err))
+        return err;
+
+    return 0;
+}
+
+static merr_t
+mdc_file_append_mem(struct mdc_file *mfp, void *data, size_t len)
 {
     struct mdc_rechdr_omf *rhomf;
 
     char *addr;
-    size_t rhlen;
     uint32_t crc;
-
-    if (ev(!mfp || !data))
-        return merr(EINVAL);
 
     addr = mfp->addr + mfp->woff;
 
@@ -587,21 +616,33 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
     crc = logrec_crc_get((const uint8_t *)&rhomf->rh_size, sizeof(rhomf->rh_size), data, len);
     omf_set_rh_crc(rhomf, crc);
 
-    rhlen = omf_mdc_rechdr_len();
-    mfp->woff += rhlen;
-    addr += rhlen;
+    memcpy(addr + omf_mdc_rechdr_len(), data, len);
 
-    memcpy(addr, data, len);
-    mfp->woff += len;
+    return 0;
+}
+
+merr_t
+mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
+{
+    merr_t err;
+
+    if (ev(!mfp || !data))
+        return merr(EINVAL);
+
+    if (len >= PAGE_SIZE)
+        err = mdc_file_append_sys(mfp, data, len);
+    else
+        err = mdc_file_append_mem(mfp, data, len);
+
+    if (ev(err))
+        return err;
+
+    mfp->woff += (omf_mdc_rechdr_len() + len);
 
     if (sync) {
-        int rc;
-
-        rc = msync(mfp->addr, mfp->woff, MS_SYNC);
-        if (ev(rc < 0)) {
-            mfp->woff -= (rhlen + len);
-            return merr(errno);
-        }
+        err = mdc_file_sync(mfp);
+        if (ev(err))
+            return err;
     }
 
     return 0;

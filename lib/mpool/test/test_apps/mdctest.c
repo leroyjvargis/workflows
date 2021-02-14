@@ -365,6 +365,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
     char   errbuf[ERROR_BUFFER_SIZE];
     u64    oid[2];
     char   buf[BUF_SIZE], buf_in[BUF_SIZE];
+    char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
     struct mpool       *mp;
@@ -418,9 +419,20 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     /* 5. Write pattern to MDC */
     for (i = 0; i < BUF_CNT; i++) {
-        memset(buf, i, BUF_SIZE);
+        char *bufp = buf;
+        size_t sz = BUF_SIZE;
+        bool sync = false;
 
-        err = mpool_mdc_append(mdc[0], buf, BUF_SIZE, true);
+        if (i % 8 == 0) {
+            bufp = largebuf;
+            sz = PAGE_SIZE;
+        }
+
+        memset(bufp, i, sz);
+        if (i % 64 == 0 || i == BUF_CNT - 1)
+            sync = true;
+
+        err = mpool_mdc_append(mdc[0], bufp, sz, sync);
         if (err) {
             merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
             fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n",
@@ -441,9 +453,20 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
         }
 
         for (i = 0; i < BUF_CNT; i++) {
-            memset(buf, i, BUF_SIZE);
+            char *bufp = buf;
+            size_t sz = BUF_SIZE;
+            bool sync = false;
 
-            err = mpool_mdc_append(mdc[0], buf, BUF_SIZE, true);
+            if (i % 8 == 0) {
+                bufp = largebuf;
+                sz = PAGE_SIZE;
+            }
+
+            memset(bufp, i, sz);
+            if (i % 64 == 0 || i == BUF_CNT - 1)
+                sync = true;
+
+            err = mpool_mdc_append(mdc[0], bufp, sz, sync);
             if (err) {
                 merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
                 fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n",
@@ -490,9 +513,17 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     /* 9. Read/Verify pattern via mdc[0] */
     for (i = 0; i < BUF_CNT; i++) {
-        memset(buf_in, ~i, sizeof(buf_in));
+        char *bufp = buf_in;
+        size_t sz = BUF_SIZE;
 
-        err = mpool_mdc_read(mdc[0], buf_in, BUF_SIZE, &read_len);
+        if (i % 8 == 0) {
+            bufp = largebuf_in;
+            sz = PAGE_SIZE;
+        }
+
+        memset(bufp, ~i, sz);
+
+        err = mpool_mdc_read(mdc[0], bufp, sz, &read_len);
         if (err) {
             original_err = err;
             merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -501,14 +532,14 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
             goto close_mdc0;
         }
 
-        if (BUF_SIZE != read_len) {
+        if (sz != read_len) {
             original_err = merr(EINVAL);
             fprintf(stderr, "%s.%d: Requested size not read exp %d, got %d\n",
-                __func__, __LINE__, (int)BUF_SIZE, (int)read_len);
+                __func__, __LINE__, (int)sz, (int)read_len);
             goto close_mdc0;
         }
 
-        rc = verify_buf(buf_in, read_len, i);
+        rc = verify_buf(bufp, read_len, i);
         if (rc != 0) {
             original_err = merr(EIO);
             fprintf(stderr, "%s.%d: Verify mismatch buf[%d]\n", __func__, __LINE__, i);
@@ -544,9 +575,17 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     /* 13. Read/Verify pattern via mdc[1] */
     for (i = 0; i < BUF_CNT; i++) {
-        memset(buf_in, ~i, sizeof(buf_in));
+        char *bufp = buf_in;
+        size_t sz = BUF_SIZE;
 
-        err = mpool_mdc_read(mdc[1], buf_in, BUF_SIZE, &read_len);
+        if (i % 8 == 0) {
+            bufp = largebuf_in;
+            sz = PAGE_SIZE;
+        }
+
+        memset(bufp, ~i, sz);
+
+        err = mpool_mdc_read(mdc[1], bufp, sz, &read_len);
         if (err) {
             original_err = err;
             merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -555,14 +594,14 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
             goto close_mdc1;
         }
 
-        if (BUF_SIZE != read_len) {
+        if (sz != read_len) {
             original_err = merr(EINVAL);
             fprintf(stderr, "%s.%d: Requested size not read exp %d, got %d\n",
-                __func__, __LINE__, (int)BUF_SIZE, (int)read_len);
+                __func__, __LINE__, (int)sz, (int)read_len);
             goto close_mdc1;
         }
 
-        rc = verify_buf(buf_in, read_len, i);
+        rc = verify_buf(bufp, read_len, i);
         if (rc != 0) {
             original_err = merr(EIO);
             fprintf(stderr, "%s.%d: Verify mismatch buf[%d]\n", __func__, __LINE__, i);
@@ -809,6 +848,7 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 	char   errbuf[ERROR_BUFFER_SIZE];
 	u64    oid[2];
 	char   buf[BUF_SIZE], buf_in[BUF_SIZE];
+    char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
 	size_t read_len;
 
 	struct mpool       *mp;
@@ -862,9 +902,20 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 
 	/* 5. Write pattern to MDC (handle: mdc[0]) */
 	for (i = 0; i < BUF_CNT; i++) {
-		memset(buf, i, BUF_SIZE);
+        char *bufp = buf;
+        size_t sz = BUF_SIZE;
+        bool sync = false;
 
-		err = mpool_mdc_append(mdc[0], buf, BUF_SIZE, true);
+        if (i % 8 == 0) {
+            bufp = largebuf;
+            sz = PAGE_SIZE;
+        }
+
+        memset(bufp, i, sz);
+        if (i % 64 == 0 || i == BUF_CNT - 1)
+            sync = true;
+
+		err = mpool_mdc_append(mdc[0], bufp, sz, sync);
 		if (err) {
 			merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
 			fprintf(stderr, "%s.%d: Unable to append to MDC: %s\n",
@@ -903,9 +954,17 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 
 	/* 9. Read/Verify pattern via mdc[1] */
 	for (i = 0; i < BUF_CNT; i++) {
-		memset(buf_in, ~i, BUF_SIZE);
+        char *bufp = buf_in;
+        size_t sz = BUF_SIZE;
 
-		err = mpool_mdc_read(mdc[1], buf_in, BUF_SIZE, &read_len);
+        if (i % 8 == 0) {
+            bufp = largebuf_in;
+            sz = PAGE_SIZE;
+        }
+
+        memset(bufp, ~i, sz);
+
+		err = mpool_mdc_read(mdc[1], bufp, sz, &read_len);
 		if (err) {
 			merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
 			fprintf(stderr, "%s.%d: Unable to read from MDC: %s\n",
@@ -913,13 +972,13 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 			goto close_mdc1;
 		}
 
-		if (BUF_SIZE != read_len) {
+		if (sz != read_len) {
 			fprintf(stderr, "%s.%d: Requested size not read exp %d, got %d\n",
-				__func__, __LINE__, (int)BUF_SIZE, (int)read_len);
+				__func__, __LINE__, (int)sz, (int)read_len);
 			goto close_mdc1;
 		}
 
-		rc = verify_buf(buf_in, read_len, i);
+		rc = verify_buf(bufp, read_len, i);
 		if (rc != 0) {
 			fprintf(stderr, "%s.%d: Verify mismatch buf[%d]\n", __func__, __LINE__, i);
 			original_err = merr(EINVAL);
