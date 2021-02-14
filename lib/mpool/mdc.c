@@ -34,7 +34,7 @@ mpool_mdc_alloc(
     int i, dirfd, flags, mode;
 
     mcid = mclassp;
-    if (ev(!mp || mcid >= MCID_MAX))
+    if (ev(!mp || mcid >= MCID_MAX || capacity < MDC_LOGHDR_LEN))
         return merr(EINVAL);
 
     dirfd = mclass_dirfd(mpool_mch_get(mp, mcid));

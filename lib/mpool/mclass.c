@@ -66,8 +66,10 @@ mclass_open(
 
     if (mcid == MCID_CAPACITY) {
         err = mclass_lockfile_acq(dirfd(dirp));
-        if (ev(err))
-            goto err_exit2;
+        if (ev(err)) {
+            closedir(dirp);
+            return err;
+        }
     }
 
     mc = calloc(1, sizeof(*mc));

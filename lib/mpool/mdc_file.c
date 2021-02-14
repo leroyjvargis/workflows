@@ -155,7 +155,7 @@ mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity)
         return err;
     }
 
-    rc = fallocate(fd, 0, 0, capacity);
+    rc = ftruncate(fd, capacity);
     if (ev(rc < 0)) {
         err = merr(errno);
         mdc_file_destroy(dirfd, logid);
@@ -260,27 +260,28 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
     if (ev(err))
         goto errout;
 
-    addr += MDC_LOGHDR_LEN; /* move past the log header */
+    if (mfp->size > MDC_LOGHDR_LEN) {
+        addr += MDC_LOGHDR_LEN; /* move past the log header */
+        rhlen = omf_mdc_rechdr_len();
 
-    rhlen = omf_mdc_rechdr_len();
+        /* Step 2: validate log records */
+        do {
+            size_t recsz;
 
-    /* Step 2: validate log records */
-    do {
-        size_t recsz;
-
-        err = logrec_validate(addr, &recsz);
-        if (err) {
-            if (merr_errno(err) == ENOMSG) { /* End of log */
-                err = 0;
-                mfp->woff = addr - mfp->addr;
-                break;
+            err = logrec_validate(addr, &recsz);
+            if (err) {
+                if (merr_errno(err) == ENOMSG) { /* End of log */
+                    err = 0;
+                    mfp->woff = addr - mfp->addr;
+                    break;
+                }
+                ev(1);
+                goto errout;
             }
-            ev(1);
-            goto errout;
-        }
 
-        addr += (rhlen + recsz);
-    } while (true);
+            addr += (rhlen + recsz);
+        } while (true);
+    }
 
 errout:
     madvise(mfp->addr, mfp->size, MADV_DONTNEED);
@@ -371,6 +372,8 @@ mdc_file_close(struct mdc_file *mfp)
     if (ev(!mfp))
         return merr(EINVAL);
 
+    mdc_file_sync(mfp);
+
     mdc_file_unmap(mfp);
 
     close(mfp->fd);
@@ -415,15 +418,26 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
     if (ev(err))
         return err;
 
-    rc = fallocate(mfp->fd, FALLOC_FL_ZERO_RANGE, MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN);
+    if (mfp->size > MDC_LOGHDR_LEN) {
+        rc = msync(mfp->addr + MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN, MS_INVALIDATE);
+        if (ev(rc < 0))
+            return merr(errno);
+
+        rc = fallocate(mfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                       MDC_LOGHDR_LEN, mfp->size - MDC_LOGHDR_LEN);
+        if (ev(rc < 0))
+            return merr(errno);
+    }
+
+    rc = fsync(mfp->fd);
     if (ev(rc < 0))
-        err = merr(errno);
+        return merr(errno);
 
     mfp->woff = MDC_LOGHDR_LEN;
     mfp->roff = MDC_LOGHDR_LEN;
     mfp->raoff = MDC_RA_BYTES;
 
-    return err;
+    return 0;
 }
 
 merr_t
@@ -572,6 +586,35 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen, bool 
 }
 
 static merr_t
+mdc_file_extend(struct mdc_file *mfp, size_t minsz)
+{
+    merr_t err;
+    int rc;
+
+    err = mdc_file_sync(mfp);
+    if (ev(err))
+        return err;
+
+    err = mdc_file_unmap(mfp);
+    if (ev(err))
+        return err;
+
+    mfp->size *= 2;
+    if (mfp->size < minsz)
+        mfp->size = 2 * minsz;
+
+    rc = ftruncate(mfp->fd, mfp->size);
+    if (ev(rc < 0))
+        return merr(errno);
+
+    err = mdc_file_mmap(mfp);
+    if (ev(err))
+        return merr(errno);
+
+    return 0;
+}
+
+static merr_t
 mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
 {
     struct mdc_rechdr_omf rhomf = {};
@@ -625,9 +668,19 @@ merr_t
 mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
 {
     merr_t err;
+    size_t tlen;
 
     if (ev(!mfp || !data))
         return merr(EINVAL);
+
+    tlen = omf_mdc_rechdr_len() + len;
+
+    /* Extend file if the usage exceeds 75% of current size. */
+    if (mfp->woff + tlen > ((3 * mfp->size) / 4)) {
+        err = mdc_file_extend(mfp, mfp->size + tlen);
+        if (ev(err))
+            return err;
+    }
 
     if (len >= PAGE_SIZE)
         err = mdc_file_append_sys(mfp, data, len);
@@ -637,7 +690,7 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
     if (ev(err))
         return err;
 
-    mfp->woff += (omf_mdc_rechdr_len() + len);
+    mfp->woff += tlen;
 
     if (sync) {
         err = mdc_file_sync(mfp);
