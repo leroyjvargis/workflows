@@ -7,6 +7,7 @@
 #define MPOOL_TEST_THREAD_H
 
 #include <hse_util/atomic.h>
+#include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
 
