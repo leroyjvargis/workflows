@@ -23,13 +23,14 @@ struct mblock_file;
  * @meta_name: fileset meta file name
  */
 struct mblock_fset {
-	struct media_class  *mc;
+    struct media_class  *mc;
 
-	struct mblock_file **filev;
-	int                  filec;
+    atomic64_t           cfid;
+    struct mblock_file **filev;
+    int                  filec;
 
-	int                  meta_fd;
-	char                 meta_name[32];
+    int                  meta_fd;
+    char                 meta_name[32];
 };
 
 /**
@@ -57,6 +58,37 @@ mblock_fset_close(struct mblock_fset *mbfsp);
  */
 void
 mblock_fset_remove(struct mblock_fset *mbfsp);
+
+merr_t
+mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv);
+
+merr_t
+mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_fset_abort(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_fset_write(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    const struct iovec *iov,
+    int                 iovc,
+    off_t               off);
+
+merr_t
+mblock_fset_read(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    const struct iovec *iov,
+    int                 iovc,
+    off_t               off);
+
+merr_t
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
 
 #endif /* MPOOL_MBLOCK_FSET_H */
 

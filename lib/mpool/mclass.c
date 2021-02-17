@@ -231,3 +231,26 @@ mclass_dpath(struct media_class *mc)
 {
     return mc->dpath;
 }
+
+struct mblock_fset *
+mclass_fset(struct media_class *mc)
+{
+    return mc->mbfsp;
+}
+
+enum mclass_id
+mclass_to_id(enum mp_media_classp mclass)
+{
+    switch (mclass) {
+        case MP_MED_CAPACITY:
+            return MCID_CAPACITY;
+
+        case MP_MED_STAGING:
+            return MCID_STAGING;
+
+        default:
+            break;
+    }
+
+    return MCID_MAX;
+}

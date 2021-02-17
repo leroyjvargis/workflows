@@ -64,7 +64,7 @@ mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
 
     size_t sz;
     merr_t err;
-    int    i;
+    int    i = 0;
 
     if (ev(!mc || !handle))
         return merr(EINVAL);
@@ -76,6 +76,7 @@ mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
         return merr(ENOMEM);
 
     mbfsp->mc = mc;
+    atomic64_set(&mbfsp->cfid, 0);
     mbfsp->filec = MBLOCK_FS_FCNT_DFLT;
     mbfsp->filev = (void *)(mbfsp + 1);
 
@@ -84,7 +85,8 @@ mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
 
         snprintf(name, sizeof(name), "%s-%d-%d", "mblock-data", mclass_id(mc), i);
 
-        err = mblock_file_open(mbfsp, mclass_dirfd(mc), name, flags, &mbfsp->filev[i]);
+        err = mblock_file_open(mbfsp, mclass_dirfd(mc), mclass_id(mc), i, name,
+                               flags, &mbfsp->filev[i]);
         if (ev(err))
             goto err_exit;
     }
@@ -141,4 +143,166 @@ mblock_fset_remove(struct mblock_fset *mbfsp)
     nftw(dpath, mblock_fset_removecb, MBLOCK_FS_FCNT_DFLT, FTW_DEPTH | FTW_PHYS);
 
     mblock_fset_meta_remove(dpath);
+}
+
+merr_t
+mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
+{
+    struct mblock_file *mbfp;
+
+    merr_t err;
+    int cfid;
+    int retries;
+
+    if (ev(!mbfsp || !mbidv))
+        return merr(EINVAL);
+
+    if (ev(mbidc > 1))
+        return merr(ENOTSUP);
+
+    retries = mbfsp->filec - 1;
+
+    do {
+        cfid = atomic64_fetch_add(1, &mbfsp->cfid) % mbfsp->filec;
+
+        mbfp = mbfsp->filev[cfid];
+        assert(mbfp);
+
+        err = mblock_file_alloc(mbfp, mbidc, mbidv);
+        if (merr_errno(err) != ENOSPC)
+            break;
+    } while (retries--);
+
+    return err;
+}
+
+merr_t
+mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
+{
+    struct mblock_file *mbfp;
+    int fid;
+
+    if (ev(!mbfsp || !mbidv))
+        return merr(EINVAL);
+
+    if (ev(mbidc > 1))
+        return merr(ENOTSUP);
+
+    fid = (*mbidv & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+    if (fid >= mbfsp->filec)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[fid];
+
+    return mblock_file_commit(mbfp, mbidv, mbidc);
+}
+
+merr_t
+mblock_fset_abort(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
+{
+    struct mblock_file *mbfp;
+    int fid;
+
+    if (ev(!mbfsp || !mbidv))
+        return merr(EINVAL);
+
+    if (ev(mbidc > 1))
+        return merr(ENOTSUP);
+
+    fid = (*mbidv & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+    if (fid >= mbfsp->filec)
+    if (fid >= mbfsp->filec)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[fid];
+
+    return mblock_file_abort(mbfp, mbidv, mbidc);
+}
+
+merr_t
+mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
+{
+    struct mblock_file *mbfp;
+    int fid;
+
+    if (ev(!mbfsp || !mbidv))
+        return merr(EINVAL);
+
+    if (ev(mbidc > 1))
+        return merr(ENOTSUP);
+
+    fid = (*mbidv & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+    if (fid >= mbfsp->filec)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[fid];
+
+    return mblock_file_delete(mbfp, mbidv, mbidc);
+}
+
+merr_t
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
+{
+    struct mblock_file *mbfp;
+    int fid;
+
+    if (ev(!mbfsp || !mbidv))
+        return merr(EINVAL);
+
+    if (ev(mbidc > 1))
+        return merr(ENOTSUP);
+
+    fid = (*mbidv & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+    if (fid >= mbfsp->filec)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[fid];
+
+    return mblock_file_find(mbfp, mbidv, mbidc);
+}
+
+merr_t
+mblock_fset_write(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    const struct iovec *iov,
+    int                 iovc,
+    off_t               off)
+{
+    struct mblock_file *mbfp;
+    int fid;
+
+    if (ev(!mbfsp))
+        return merr(EINVAL);
+
+    fid = (mbid & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+    if (fid >= mbfsp->filec)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[fid];
+
+    return mblock_file_write(mbfp, mbid, iov, iovc, off);
+}
+
+merr_t
+mblock_fset_read(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    const struct iovec *iov,
+    int                 iovc,
+    off_t               off)
+{
+    struct mblock_file *mbfp;
+    int fid;
+
+    if (ev(!mbfsp))
+        return merr(EINVAL);
+
+    fid = (mbid & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+    if (fid >= mbfsp->filec)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[fid];
+
+    return mblock_file_read(mbfp, mbid, iov, iovc, off);
 }

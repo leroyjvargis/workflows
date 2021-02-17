@@ -8,6 +8,7 @@
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
+#include "mblock.h"
 
 merr_t
 mpool_mclass_add(
@@ -37,7 +38,7 @@ mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mcl
         return merr(ENOENT);
 
     if (props)
-        props->mc_mblocksz = MPOOL_MBSIZE_MB_DEFAULT;
+        props->mc_mblocksz = MBLOCK_SIZE_MB;
 
     return 0;
 }
@@ -76,38 +77,12 @@ mpool_mblock_alloc(
     return 0;
 }
 
-merr_t mpool_mblock_find(struct mpool *mp, uint64_t objid, struct mblock_props *props)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
-{
-    return 0;
-}
-
 merr_t mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     return 0;
 }
 
 merr_t mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
-{
-    return 0;
-}
-
-merr_t
-mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t offset)
 {
     return 0;
 }

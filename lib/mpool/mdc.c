@@ -24,7 +24,7 @@ mpool_mdc_alloc(
 	struct mpool           *mp,
     uint32_t                magic,
     size_t                  capacity,
-	enum mp_media_classp    mclassp,
+	enum mp_media_classp    mclass,
     uint64_t               *logid1,
     uint64_t               *logid2)
 {
@@ -33,16 +33,16 @@ mpool_mdc_alloc(
     uint64_t id[2];
     int i, dirfd, flags, mode;
 
-    mcid = mclassp;
+    mcid = mclass_to_id(mclass);
     if (ev(!mp || mcid >= MCID_MAX || capacity < MDC_LOGHDR_LEN))
         return merr(EINVAL);
 
-    dirfd = mclass_dirfd(mpool_mch_get(mp, mcid));
+    dirfd = mclass_dirfd(mpool_mchdl_get(mp, mcid));
     flags = O_RDWR | O_CREAT | O_EXCL;
     mode = S_IRUSR | S_IWUSR;
 
     for (i = 0; i < 2; i++) {
-        id[i] = logid_make(i, mclassp, magic);
+        id[i] = logid_make(i, mcid, magic);
 
         err = mdc_file_create(dirfd, id[i], flags, mode, capacity);
         if (ev(err)) {
@@ -70,7 +70,7 @@ mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    dirfd = mclass_dirfd(mpool_mch_get(mp, mcid));
+    dirfd = mclass_dirfd(mpool_mchdl_get(mp, mcid));
 
     for (i = 0; i < 2; i++) {
         err = mdc_file_commit(dirfd, id[i]);
@@ -96,7 +96,7 @@ mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2)
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    dirfd = mclass_dirfd(mpool_mch_get(mp, mcid));
+    dirfd = mclass_dirfd(mpool_mchdl_get(mp, mcid));
 
     for (i = 0; i < 2; i++) {
         err = mdc_file_destroy(dirfd, id[i]);
@@ -136,7 +136,7 @@ mpool_mdc_open(
 
     mdc->mp = mp;
     mcid = logid_mcid(logid1);
-    mdc->mc = mpool_mch_get(mp, mcid);
+    mdc->mc = mpool_mchdl_get(mp, mcid);
 
     err1 = mdc_file_open(mdc, logid1, &gen1, &mfp[0]);
     err2 = mdc_file_open(mdc, logid2, &gen2, &mfp[1]);
@@ -316,7 +316,7 @@ mdc_exists(
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    dirfd = mclass_dirfd(mpool_mch_get(mp, mcid));
+    dirfd = mclass_dirfd(mpool_mchdl_get(mp, mcid));
 
     err = mdc_file_exists(dirfd, logid1, logid2, exist);
     if (ev(err))

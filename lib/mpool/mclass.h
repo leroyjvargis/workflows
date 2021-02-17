@@ -10,6 +10,8 @@
 
 #include <hse_util/hse_err.h>
 
+#include <mpool/mpool_internal.h>
+
 #define MCLASS_MAX              (1 << 2)    /* 2-bit for mclass-id */
 
 struct mblock_fset;
@@ -102,5 +104,11 @@ mclass_dpath(struct media_class *mc);
  */
 int
 mclass_dirfd(struct media_class *mc);
+
+struct mblock_fset *
+mclass_fset(struct media_class *mc);
+
+enum mclass_id
+mclass_to_id(enum mp_media_classp mclass);
 
 #endif /* MPOOL_MCLASS_H */

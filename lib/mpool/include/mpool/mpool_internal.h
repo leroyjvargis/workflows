@@ -16,11 +16,6 @@
 
 #define MPOOL_ROOT_LOG_CAP          (8 * 1024 * 1024)
 
-#define MPOOL_MBSIZE_MB_DEFAULT     32
-
-struct mdc_props;
-struct mdc_capacity;
-
 /**
  * mp_media_classp = Media classes
  *
