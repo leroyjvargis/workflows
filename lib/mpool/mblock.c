@@ -28,16 +28,13 @@ mpool_mblock_alloc2(
     struct mblock_props    *props)
 {
     struct media_class *mc;
-    enum mclass_id mcid;
 
     merr_t err;
 
-    mcid = mclass_to_id(mclass);
-
-    if (ev(!mp || !mbid || mcid >= MCID_MAX))
+    if (ev(!mp || !mbid || mclass >= MP_MED_COUNT))
         return merr(EINVAL);
 
-    mc = mpool_mchdl_get(mp, mcid);
+    mc = mpool_mclass_handle(mp, mclass);
 
     err = mblock_fset_alloc(mclass_fset(mc), 1, mbid);
 
@@ -55,13 +52,13 @@ merr_t
 mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum mclass_id mcid;
+    enum mp_media_classp mclass;
 
     if (ev(!mp))
         return merr(EINVAL);
 
-    mcid = mbid & MBID_MCID_MASK;
-    mc = mpool_mchdl_get(mp, mcid);
+    mclass = mcid_to_mclass(mclassid(mbid));
+    mc = mpool_mclass_handle(mp, mclass);
 
     return mblock_fset_commit(mclass_fset(mc), &mbid, 1);
 }
@@ -70,13 +67,13 @@ merr_t
 mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum mclass_id mcid;
+    enum mp_media_classp mclass;
 
     if (ev(!mp))
         return merr(EINVAL);
 
-    mcid = mbid & MBID_MCID_MASK;
-    mc = mpool_mchdl_get(mp, mcid);
+    mclass = mcid_to_mclass(mclassid(mbid));
+    mc = mpool_mclass_handle(mp, mclass);
 
     return mblock_fset_abort(mclass_fset(mc), &mbid, 1);
 }
@@ -85,13 +82,13 @@ merr_t
 mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 {
     struct media_class *mc;
-    enum mclass_id mcid;
+    enum mp_media_classp mclass;
 
     if (ev(!mp))
         return merr(EINVAL);
 
-    mcid = mbid & MBID_MCID_MASK;
-    mc = mpool_mchdl_get(mp, mcid);
+    mclass = mcid_to_mclass(mclassid(mbid));
+    mc = mpool_mclass_handle(mp, mclass);
 
     return mblock_fset_delete(mclass_fset(mc), &mbid, 1);
 }
@@ -100,15 +97,15 @@ merr_t
 mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     struct media_class *mc;
-    enum mclass_id mcid;
+    enum mp_media_classp mclass;
 
     merr_t err;
 
     if (ev(!mp))
         return merr(EINVAL);
 
-    mcid = mbid & MBID_MCID_MASK;
-    mc = mpool_mchdl_get(mp, mcid);
+    mclass = mcid_to_mclass(mclassid(mbid));
+    mc = mpool_mclass_handle(mp, mclass);
 
     err = mblock_fset_find(mclass_fset(mc), &mbid, 1);
 
@@ -116,7 +113,7 @@ mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
         props->mpr_objid = mbid;
         props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
         props->mpr_optimal_wrsz = 128 << 10;
-        props->mpr_mclassp = (enum mp_media_classp)mcid; /* TODO: fix this */
+        props->mpr_mclassp = mclass;
     }
 
     return err;
@@ -132,13 +129,13 @@ mpool_mblock_write2(
     off_t               off)
 {
     struct media_class *mc;
-    enum mclass_id      mcid;
+    enum mp_media_classp mclass;
 
     if (ev(!mp || !iov))
         return merr(EINVAL);
 
-    mcid = mbid & MBID_MCID_MASK;
-    mc = mpool_mchdl_get(mp, mcid);
+    mclass = mcid_to_mclass(mclassid(mbid));
+    mc = mpool_mclass_handle(mp, mclass);
 
     return mblock_fset_write(mclass_fset(mc), mbid, iov, iovc, off);
 }
@@ -152,13 +149,13 @@ mpool_mblock_read(
     off_t               off)
 {
     struct media_class *mc;
-    enum mclass_id mcid;
+    enum mp_media_classp mclass;
 
     if (ev(!mp || !iov))
         return merr(EINVAL);
 
-    mcid = mbid & MBID_MCID_MASK;
-    mc = mpool_mchdl_get(mp, mcid);
+    mclass = mcid_to_mclass(mclassid(mbid));
+    mc = mpool_mclass_handle(mp, mclass);
 
     return mblock_fset_read(mclass_fset(mc), mbid, iov, iovc, off);
 }

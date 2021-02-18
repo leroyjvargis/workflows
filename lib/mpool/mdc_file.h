@@ -18,33 +18,33 @@
 #define MDC_RA_BYTES           (128 << 10)
 
 struct mdc_loghdr {
-	uint32_t              vers;
-	uint32_t              magic;
-	uint64_t              gen;
-	uint32_t              rsvd;
-	uint32_t              crc;
+    uint32_t              vers;
+    uint32_t              magic;
+    uint64_t              gen;
+    uint32_t              rsvd;
+    uint32_t              crc;
 };
 
 struct mdc_file {
-	struct mpool_mdc      *mdc;
-	struct mdc_loghdr      lh;
+    struct mpool_mdc      *mdc;
+    struct mdc_loghdr      lh;
 
-	uint64_t               logid;
-	int                    fd;
+    uint64_t               logid;
+    int                    fd;
 
-	off_t                  raoff;
-	off_t                  woff;
-	off_t                  roff;
-	size_t                 size;
+    off_t                  raoff;
+    off_t                  woff;
+    off_t                  roff;
+    size_t                 size;
 
-	const struct io_ops   *io;
-	char                  *addr;
-	char                   name[32];
+    const struct io_ops   *io;
+    char                  *addr;
+    char                   name[32];
 };
 
 struct mdc_rechdr {
-	uint64_t               size;
-	uint32_t               crc;
+    uint64_t               size;
+    uint32_t               crc;
 };
 
 merr_t

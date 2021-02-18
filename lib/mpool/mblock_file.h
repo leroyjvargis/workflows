@@ -28,6 +28,37 @@ struct mblock_fset;
 struct mblock_file;
 struct io_ops;
 
+static inline int
+file_id(uint64_t mbid)
+{
+    return (mbid & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
+}
+
+static inline int
+file_index(uint64_t mbid)
+{
+    return file_id(mbid) - 1;
+}
+
+static inline enum mclass_id
+mclassid(uint64_t mbid)
+{
+    return (mbid & MBID_MCID_MASK) >> MBID_MCID_SHIFT;
+}
+
+static inline uint32_t
+block_id(uint64_t mbid)
+{
+    return mbid & MBID_BLOCK_MASK;
+}
+
+static inline uint64_t
+block_off(uint64_t mbid)
+{
+    return ((uint64_t)block_id(mbid)) << MBLOCK_SIZE_SHIFT;
+}
+
+
 /**
  * mblock_file_open() - open an mblock file
  *

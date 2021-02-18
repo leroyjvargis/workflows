@@ -28,7 +28,7 @@ enum mp_media_classp {
 };
 
 #define MP_MED_BASE        MP_MED_CAPACITY
-#define MP_MED_NUMBER      (MP_MED_STAGING + 1)
+#define MP_MED_COUNT       (MP_MED_STAGING + 1)
 #define MP_MED_INVALID     U8_MAX
 
 /**
@@ -60,7 +60,7 @@ struct mpool_params {
 	uint64_t    mp_oidv[2];
 	uint32_t    mp_ra_pages_max;
 	uint32_t    mp_vma_size_max;
-	uint32_t    mp_mblocksz[MP_MED_NUMBER];
+	uint32_t    mp_mblocksz[MP_MED_COUNT];
 	uint16_t    mp_mdc0cap;
 	uint16_t    mp_mdcncap;
 	uint16_t    mp_mdcnum;

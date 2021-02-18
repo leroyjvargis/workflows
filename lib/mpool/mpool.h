@@ -20,13 +20,13 @@ struct mdc;
  * @name:     mpool/kvdb name
  */
 struct mpool {
-	struct media_class *mc[MCID_MAX];
+    struct media_class *mc[MP_MED_COUNT];
 
-	char                name[64];
+    char                name[64];
 };
 
 struct media_class *
-mpool_mchdl_get(struct mpool *mp, enum mclass_id mcid);
+mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass);
 
 #endif /* MPOOL_H */
 

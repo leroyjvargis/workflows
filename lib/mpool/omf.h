@@ -17,11 +17,11 @@
 
 
 struct mdc_loghdr_omf {
-	__le32 lh_vers;
-	__le32 lh_magic;
-	__le32 lh_rsvd;
-	__le64 lh_gen;
-	__le32 lh_crc;
+    __le32 lh_vers;
+    __le32 lh_magic;
+    __le32 lh_rsvd;
+    __le64 lh_gen;
+    __le32 lh_crc;
 } __packed;
 
 /* Define set/get methods for mdc_loghdr_omf */
@@ -33,8 +33,8 @@ OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
 
 
 struct mdc_rechdr_omf {
-	__le32 rh_crc;
-	__le64 rh_size;
+    __le32 rh_crc;
+    __le64 rh_size;
 } __packed;
 
 /* Define set/get methods for mdc_rechdr_omf */

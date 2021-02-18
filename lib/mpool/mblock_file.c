@@ -411,7 +411,7 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (ev(mbidc > 1))
         return merr(ENOTSUP);
 
-    block = *mbidv & MBID_BLOCK_MASK;
+    block = block_id(*mbidv);
 
     err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
     ev(err);
@@ -457,7 +457,7 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (ev(mbidc > 1))
         return merr(ENOTSUP);
 
-    block = *mbidv & MBID_BLOCK_MASK;
+    block = block_id(*mbidv);
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
     if (ev(err))
@@ -479,7 +479,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (ev(mbidc > 1))
         return merr(ENOTSUP);
 
-    block = *mbidv & MBID_BLOCK_MASK;
+    block = block_id(*mbidv);
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
     if (ev(err))
@@ -487,7 +487,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 
     /* Discard mblock */
     rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                   block << MBLOCK_SIZE_SHIFT, MBLOCK_SIZE_MB << 20);
+                   block_off(*mbidv), MBLOCK_SIZE_BYTES);
     ev(rc);
 
     /* TODO: Persist the allocation state of mblock ID on media */
@@ -503,15 +503,16 @@ mblock_file_read(
     int                 iovc,
 	off_t               off)
 {
-    uint64_t roff, block;
+    uint64_t roff;
     bool verify = false; /* TODO: Toggle after adding persisting mblocks */
 
-    if (ev(!mbfp || !iov ||
-           off < 0 || off >= (MBLOCK_SIZE_MB << 20) - 1))
+    if (ev(!mbfp || !iov))
         return merr(EINVAL);
 
     if (iovc == 0)
         return 0;
+
+    /* TODO: Add offset and len validation */
 
     if (verify) {
         merr_t err;
@@ -521,8 +522,7 @@ mblock_file_read(
             return err;
     }
 
-    block = mbid & MBID_BLOCK_MASK;
-    roff = block << MBLOCK_SIZE_SHIFT;
+    roff = block_off(mbid);
     roff += off;
 
     return mbfp->io->read(mbfp->fd, roff, (const struct iovec *)iov, iovc, 0);
@@ -536,12 +536,13 @@ mblock_file_write(
     int                 iovc,
 	off_t               off)
 {
-    uint64_t woff, block;
+    uint64_t woff;
     merr_t   err;
 
-    if (ev(!mbfp || !iov ||
-           off < 0 || off >= (MBLOCK_SIZE_MB << 20) - 1))
+    if (ev(!mbfp || !iov))
         return merr(EINVAL);
+
+    /* TODO: Add offset and len validation */
 
     if (iovc == 0)
         return 0;
@@ -550,8 +551,7 @@ mblock_file_write(
     if (ev(err))
         return err;
 
-    block = mbid & MBID_BLOCK_MASK;
-    woff = block << MBLOCK_SIZE_SHIFT;
+    woff = block_off(mbid);
     woff += off;
 
     return mbfp->io->write(mbfp->fd, woff, (const struct iovec *)iov, iovc, 0);

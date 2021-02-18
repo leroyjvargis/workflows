@@ -25,13 +25,14 @@ struct mblock_file;
 struct mblock_fset {
     struct media_class  *mc;
 
-    atomic64_t           cfid;
+    atomic64_t           fidx;
     struct mblock_file **filev;
     int                  filec;
 
     int                  meta_fd;
     char                 meta_name[32];
 };
+
 
 /**
  * mblock_fset_open() - open an mblock fileset

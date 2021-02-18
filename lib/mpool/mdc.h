@@ -17,13 +17,13 @@ struct io_ops;
 struct mpool;
 
 struct mpool_mdc {
-	struct mutex           lock;
-	struct mdc_file       *mfp1;
-	struct mdc_file       *mfp2;
-	struct mdc_file       *mfpa;
+    struct mutex           lock;
+    struct mdc_file       *mfp1;
+    struct mdc_file       *mfp2;
+    struct mdc_file       *mfpa;
 
-	struct media_class    *mc;
-	struct mpool          *mp;
+    struct media_class    *mc;
+    struct mpool          *mp;
 };
 
 struct media_class *

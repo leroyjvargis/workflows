@@ -18,9 +18,9 @@ struct mblock_fset;
 struct mpool;
 
 enum mclass_id {
-	MCID_CAPACITY = 0,
-	MCID_STAGING  = 1,
-	MCID_MAX      = 2,
+    MCID_INVALID  = 0,
+    MCID_CAPACITY = 1,
+    MCID_STAGING  = 2,
 };
 
 /**
@@ -32,10 +32,10 @@ enum mclass_id {
  * @dpath: mclass directory path
  */
 struct media_class {
-	DIR                    *dirp;
-	struct mblock_fset     *mbfsp;
-	enum mclass_id          mcid;
-	char                    dpath[PATH_MAX];
+    DIR                    *dirp;
+    struct mblock_fset     *mbfsp;
+    enum mclass_id          mcid;
+    char                    dpath[PATH_MAX];
 };
 
 /**
@@ -51,7 +51,7 @@ struct media_class {
 merr_t
 mclass_open(
     struct mpool        *mp,
-    enum mclass_id       mcid,
+    enum mp_media_classp mclass,
     const char          *dpath,
     int                  flags,
     struct media_class **handle);
@@ -109,6 +109,9 @@ struct mblock_fset *
 mclass_fset(struct media_class *mc);
 
 enum mclass_id
-mclass_to_id(enum mp_media_classp mclass);
+mclass_to_mcid(enum mp_media_classp mclass);
+
+enum mp_media_classp
+mcid_to_mclass(enum mclass_id mcid);
 
 #endif /* MPOOL_MCLASS_H */

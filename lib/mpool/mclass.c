@@ -44,7 +44,7 @@ mclass_lockfile_rel(int dirfd)
 merr_t
 mclass_open(
     struct mpool        *mp,
-    enum mclass_id       mcid,
+    enum mp_media_classp mclass,
     const char          *dpath,
     int                  flags,
     struct media_class **handle)
@@ -54,7 +54,7 @@ mclass_open(
     DIR    *dirp;
     merr_t  err;
 
-    if (ev(!mp || !dpath || !handle || mcid >= MCID_MAX))
+    if (ev(!mp || !dpath || !handle || mclass >= MP_MED_COUNT))
         return merr(EINVAL);
 
     dirp = opendir(dpath);
@@ -64,7 +64,7 @@ mclass_open(
         return err;
     }
 
-    if (mcid == MCID_CAPACITY) {
+    if (mclass == MP_MED_CAPACITY) {
         err = mclass_lockfile_acq(dirfd(dirp));
         if (ev(err)) {
             closedir(dirp);
@@ -79,13 +79,13 @@ mclass_open(
     }
 
     mc->dirp = dirp;
-    mc->mcid = mcid;
+    mc->mcid = mclass_to_mcid(mclass);
 
     strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
 
     err = mblock_fset_open(mc, flags, &mc->mbfsp);
     if (err) {
-        hse_elog(HSE_ERR "Opening data files failed, mcid %d: @@e", err, mcid);
+        hse_elog(HSE_ERR "Opening data files failed, mclass %d: @@e", err, mclass);
         goto err_exit1;
     }
 
@@ -111,7 +111,7 @@ mclass_close(struct media_class *mc)
 
     mblock_fset_close(mc->mbfsp);
 
-    if (mc->mcid == MCID_CAPACITY)
+    if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
         mclass_lockfile_rel(dirfd(mc->dirp));
 
     closedir(mc->dirp);
@@ -129,7 +129,7 @@ mclass_destroy(struct media_class *mc)
 
     mblock_fset_remove(mc->mbfsp);
 
-    if (mc->mcid == MCID_CAPACITY)
+    if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
         mclass_lockfile_rel(dirfd(mc->dirp));
 
     closedir(mc->dirp);
@@ -239,7 +239,7 @@ mclass_fset(struct media_class *mc)
 }
 
 enum mclass_id
-mclass_to_id(enum mp_media_classp mclass)
+mclass_to_mcid(enum mp_media_classp mclass)
 {
     switch (mclass) {
         case MP_MED_CAPACITY:
@@ -252,5 +252,22 @@ mclass_to_id(enum mp_media_classp mclass)
             break;
     }
 
-    return MCID_MAX;
+    return MCID_INVALID;
+}
+
+enum mp_media_classp
+mcid_to_mclass(enum mclass_id mcid)
+{
+    switch (mcid) {
+        case MCID_CAPACITY:
+            return MP_MED_CAPACITY;
+
+        case MCID_STAGING:
+            return MP_MED_STAGING;
+
+        default:
+            break;
+    }
+
+    return MP_MED_INVALID;
 }

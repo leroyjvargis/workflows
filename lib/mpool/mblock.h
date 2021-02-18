@@ -8,6 +8,7 @@
 
 #define MBLOCK_FILE_SIZE_MAX     (1ULL << 11) /* In GiB */
 #define MBLOCK_SIZE_MB           (32)
+#define MBLOCK_SIZE_BYTES        (MBLOCK_SIZE_MB << 20)
 #define MBLOCK_SIZE_SHIFT        (25)
 
 #endif /* MPOOL_MBLOCK_H */
