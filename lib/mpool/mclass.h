@@ -14,6 +14,7 @@
 
 #define MCLASS_MAX              (1 << 2)    /* 2-bit for mclass-id */
 
+struct media_class;
 struct mblock_fset;
 struct mpool;
 
@@ -21,21 +22,6 @@ enum mclass_id {
     MCID_INVALID  = 0,
     MCID_CAPACITY = 1,
     MCID_STAGING  = 2,
-};
-
-/**
- * struct media_class - represents a mclass instance
- *
- * @dirp:  mclass directory stream
- * @mbfsp: mblock fileset handle
- * @mcid:  mclass ID (persisted in mblock/mdc metadata)
- * @dpath: mclass directory path
- */
-struct media_class {
-    DIR                    *dirp;
-    struct mblock_fset     *mbfsp;
-    enum mclass_id          mcid;
-    char                    dpath[PATH_MAX];
 };
 
 /**

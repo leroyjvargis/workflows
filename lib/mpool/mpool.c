@@ -19,6 +19,19 @@
 
 #define UUID_STRLEN    36
 
+/**
+ * struct mpool - mpool handle
+ *
+ * @mc:       media class handles
+ * @name:     mpool/kvdb name
+ */
+struct mpool {
+    struct media_class *mc[MP_MED_COUNT];
+
+    char                name[64];
+};
+
+
 merr_t
 mpool_open(
     const char                  *name,

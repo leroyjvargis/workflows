@@ -8,31 +8,13 @@
 
 #include <hse_util/hse_err.h>
 
-#define MBLOCK_FS_FCNT_MAX      (1 << 8)    /* 8-bit for file-id */
-#define MBLOCK_FS_FCNT_DFLT      32
+#include "mblock_file.h"
+
+#define MBLOCK_FSET_FILES_MAX      (1 << MBID_FILEID_BITS)
+#define MBLOCK_FSET_FILES_DEFAULT   32
 
 struct mblock_file;
-
-/**
- * struct mblock_fset - mblock fileset instance
- *
- * @mc:        media class handle
- * @filev:     vector of mblock file handles
- * @filec:     mblock file count
- * @meta_fd:   fd of the fileset meta file
- * @meta_name: fileset meta file name
- */
-struct mblock_fset {
-    struct media_class  *mc;
-
-    atomic64_t           fidx;
-    struct mblock_file **filev;
-    int                  filec;
-
-    int                  meta_fd;
-    char                 meta_name[32];
-};
-
+struct mblock_fset;
 
 /**
  * mblock_fset_open() - open an mblock fileset

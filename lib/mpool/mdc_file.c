@@ -23,7 +23,24 @@
 #include "omf.h"
 #include "io.h"
 
-struct mpool_mdc;
+
+struct mdc_file {
+    struct mpool_mdc      *mdc;
+    struct mdc_loghdr      lh;
+
+    uint64_t               logid;
+    int                    fd;
+
+    off_t                  raoff;
+    off_t                  woff;
+    off_t                  roff;
+    size_t                 size;
+
+    const struct io_ops   *io;
+    char                  *addr;
+    char                   name[32];
+};
+
 
 static void
 loghdr_init(struct mdc_loghdr *lh, uint64_t gen)

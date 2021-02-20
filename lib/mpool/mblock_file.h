@@ -11,15 +11,29 @@
 #include "mclass.h"
 #include "mblock.h"
 
+#define MBID_FILEID_BITS  (8)
+
+/**
+ * Mblock ID in-memory layout
+ *
+ * Bit-range    #Bits       Field
+ * ---------    -----    -----------
+ *  [63..32]     32      Uniquifier
+ *  [31..24]      8      File ID
+ *  [23..22]      2      Mclass ID
+ *  [21..16]      6      Reserved
+ *  [15..0]      16      Block offset
+ */
+
 #define MBID_UNIQ_SHIFT   (32)
-#define MBID_RSVD_SHIFT   (26)
-#define MBID_MCID_SHIFT   (24)
-#define MBID_FILEID_SHIFT (16)
+#define MBID_FILEID_SHIFT (24)
+#define MBID_MCID_SHIFT   (22)
+#define MBID_RSVD_SHIFT   (16)
 
 #define MBID_UNIQ_MASK    (0xffffffff00000000)
-#define MBID_RSVD_MASK    (0x00000000fc000000)
-#define MBID_MCID_MASK    (0x0000000003000000)
-#define MBID_FILEID_MASK  (0x0000000000ff0000)
+#define MBID_FILEID_MASK  (0x00000000ff000000)
+#define MBID_MCID_MASK    (0x0000000000c00000)
+#define MBID_RSVD_MASK    (0x00000000003f0000)
 #define MBID_BLOCK_MASK   (0x000000000000ffff)
 
 struct mblock_mmap;

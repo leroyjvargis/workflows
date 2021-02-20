@@ -372,7 +372,7 @@ mblock_rgn_find(struct mblock_rgnmap *rgnmap, uint32_t key)
 merr_t
 mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
 {
-    uint64_t mbid = 0;
+    uint64_t mbid;
     uint32_t block, uniq;
 
     if (ev(!mbfp || !mbidv))
@@ -387,10 +387,11 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
 
     uniq = atomic_fetch_add(1, &mbfp->uniq);
 
-    mbid |= ((uint64_t)uniq << MBID_UNIQ_SHIFT);
-    mbid |= ((uint64_t)mbfp->mcid << MBID_MCID_SHIFT) & MBID_MCID_MASK;
-    mbid |= ((uint64_t)mbfp->fileid << MBID_FILEID_SHIFT) & MBID_FILEID_MASK;
-    mbid |= (block - 1) & MBID_BLOCK_MASK;
+    mbid = 0;
+    mbid |= (((uint64_t)uniq << MBID_UNIQ_SHIFT) & MBID_UNIQ_MASK);
+    mbid |= (((uint64_t)mbfp->fileid << MBID_FILEID_SHIFT) & MBID_FILEID_MASK);
+    mbid |= (((uint64_t)mbfp->mcid << MBID_MCID_SHIFT) & MBID_MCID_MASK);
+    mbid |= ((block - 1) & MBID_BLOCK_MASK);
 
     /* TODO: Persist uniquifier on-media every 'n' allocations. */
 

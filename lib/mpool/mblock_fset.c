@@ -17,7 +17,27 @@
 
 #include "mclass.h"
 #include "mblock_fset.h"
-#include "mblock_file.h"
+
+/**
+ * struct mblock_fset - mblock fileset instance
+ *
+ * @mc:        media class handle
+ * @filev:     vector of mblock file handles
+ * @filec:     mblock file count
+ * @meta_fd:   fd of the fileset meta file
+ * @meta_name: fileset meta file name
+ */
+struct mblock_fset {
+    struct media_class  *mc;
+
+    atomic64_t           fidx;
+    struct mblock_file **filev;
+    int                  filec;
+
+    int                  meta_fd;
+    char                 meta_name[32];
+};
+
 
 /* Init metadata file that persists mblocks in the data files */
 static merr_t
@@ -69,7 +89,7 @@ mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
     if (ev(!mc || !handle))
         return merr(EINVAL);
 
-    sz = sizeof(*mbfsp) + MBLOCK_FS_FCNT_DFLT * sizeof(void *);
+    sz = sizeof(*mbfsp) + MBLOCK_FSET_FILES_DEFAULT * sizeof(void *);
 
     mbfsp = calloc(1, sz);
     if (ev(!mbfsp))
@@ -77,7 +97,7 @@ mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
 
     mbfsp->mc = mc;
     atomic64_set(&mbfsp->fidx, 0);
-    mbfsp->filec = MBLOCK_FS_FCNT_DFLT;
+    mbfsp->filec = MBLOCK_FSET_FILES_DEFAULT;
     mbfsp->filev = (void *)(mbfsp + 1);
 
     for (i = 0; i < mbfsp->filec; i++) {
@@ -140,7 +160,7 @@ mblock_fset_remove(struct mblock_fset *mbfsp)
 
     mblock_fset_close(mbfsp);
 
-    nftw(dpath, mblock_fset_removecb, MBLOCK_FS_FCNT_DFLT, FTW_DEPTH | FTW_PHYS);
+    nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_DEFAULT, FTW_DEPTH | FTW_PHYS);
 
     mblock_fset_meta_remove(dpath);
 }

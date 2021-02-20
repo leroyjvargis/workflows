@@ -19,6 +19,22 @@
 #include "mclass.h"
 #include "mblock_fset.h"
 
+/**
+ * struct media_class - represents a mclass instance
+ *
+ * @dirp:  mclass directory stream
+ * @mbfsp: mblock fileset handle
+ * @mcid:  mclass ID (persisted in mblock/mdc metadata)
+ * @dpath: mclass directory path
+ */
+struct media_class {
+    DIR                    *dirp;
+    struct mblock_fset     *mbfsp;
+    enum mclass_id          mcid;
+    char                    dpath[PATH_MAX];
+};
+
+
 static merr_t
 mclass_lockfile_acq(int dirfd)
 {
