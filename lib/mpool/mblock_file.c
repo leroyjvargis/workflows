@@ -19,9 +19,17 @@
 #include <hse_util/slab.h>
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/minmax.h>
 
 #include "mblock_file.h"
 #include "io.h"
+#include "omf.h"
+
+#define MBLOCK_FILE_META_HDRLEN  (4096)
+#define MBLOCK_FILE_META_OIDLEN  (8)
+
+#define MBLOCK_FILE_SIZE_MAX     ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
+
 
 /**
  * struct mblock_rgn -
@@ -56,31 +64,36 @@ struct mblock_rgnmap {
  *
  * maxsz: maximum file size (2TiB with 16-bit block offset)
  *
- * meta_soff: start offset in the fset meta file
- * meta_len:  length of the metadata region for this file
- *
  * fd:   file handle
  * name: file name
  *
  */
 struct mblock_file {
     struct mblock_rgnmap    rgnmap;
+
     struct mblock_fset     *mbfsp;
     struct mblock_map      *mmap;
     const struct io_ops    *io;
 
     size_t                  maxsz;
 
-    off_t                   meta_soff;
-    size_t                  meta_len;
-
     enum mclass_id          mcid;
     atomic_t                uniq;
     int                     fileid;
 
-    int                     fd;
-    char                    name[32];
+    struct mutex            meta_lock;
+    char                   *meta_addr;
+    int                     meta_fd;
+    off_t                   meta_off;
+
+    int                     data_fd;
+    char                    dname[32];
+
 };
+
+/**
+ * Region map interfaces.
+ */
 
 static merr_t
 mblock_rgnmap_init(
@@ -108,7 +121,7 @@ mblock_rgnmap_init(
     }
 
     rgn->rgn_start = 1;
-    rmax = (mbfp->maxsz << 10) / MBLOCK_SIZE_MB;
+    rmax = mbfp->maxsz >> MBLOCK_SIZE_SHIFT;
     rgn->rgn_end = rmax + 1;
 
     mutex_lock(&rgnmap->rm_lock);
@@ -120,104 +133,6 @@ mblock_rgnmap_init(
 
     return 0;
 }
-
-merr_t
-mblock_file_open(
-    struct mblock_fset  *mbfsp,
-    int                  dirfd,
-    enum mclass_id       mcid,
-    int                  fileid,
-    char                *name,
-    int                  flags,
-    struct mblock_file **handle)
-{
-    struct mblock_file   *mbfp;
-
-    int fd,  rc;
-    merr_t   err;
-    char     rname[32];
-
-    if (ev(!mbfsp || !name || !handle))
-        return merr(EINVAL);
-
-    mbfp = calloc(1, sizeof(*mbfp));
-    if (ev(!mbfp))
-        return merr(ENOMEM);
-
-    mbfp->maxsz = MBLOCK_FILE_SIZE_MAX;
-
-    snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
-    err = mblock_rgnmap_init(mbfp, rname);
-    if (ev(err))
-        goto err_exit;
-
-    mbfp->mbfsp = mbfsp;
-    strlcpy(mbfp->name, name, sizeof(mbfp->name));
-
-    mbfp->mcid = mcid;
-    atomic_set(&mbfp->uniq, 1); /* TODO: initialize from metadata file */
-    mbfp->fileid = fileid;
-
-    if (flags == 0 || !(flags & (O_RDWR | O_RDONLY | O_WRONLY)))
-        flags |= O_RDWR;
-
-    flags &= O_RDWR | O_RDONLY | O_WRONLY | O_CREAT;
-
-    if (flags & O_CREAT)
-        flags |= O_EXCL;
-
-    fd = openat(dirfd, name, flags | O_DIRECT, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "open/create data file failed, file name %s: @@e", err, name);
-        goto err_exit;
-    }
-
-    /* ftruncate to the maximum size to make it a sparse file */
-    rc = ftruncate(fd, mbfp->maxsz << 30);
-    if (rc < 0) {
-        err = merr(errno);
-        close(fd);
-        hse_elog(HSE_ERR "Truncating data file failed, file name %s: @@e", err, name);
-        goto err_exit;
-    }
-
-    mbfp->fd = fd;
-    mbfp->io = &io_sync_ops;
-
-    *handle = mbfp;
-
-    return 0;
-
-    err_exit:
-    if (mbfp->rgnmap.rm_cache)
-        kmem_cache_destroy(mbfp->rgnmap.rm_cache);
-
-    free(mbfp);
-
-    return err;
-}
-
-void
-mblock_file_close(struct mblock_file *mbfp)
-{
-    struct mblock_rgnmap *rgnmap;
-    struct mblock_rgn    *rgn, *next;
-
-    if (!mbfp)
-        return;
-
-    rgnmap = &mbfp->rgnmap;
-
-    rbtree_postorder_for_each_entry_safe(rgn, next, &rgnmap->rm_root, rgn_node) {
-        kmem_cache_free(rgnmap->rm_cache, rgn);
-    }
-
-    close(mbfp->fd);
-
-    free(mbfp);
-}
-
 
 static uint32_t
 mblock_rgn_alloc(struct mblock_rgnmap *rgnmap)
@@ -257,6 +172,93 @@ mblock_rgn_alloc(struct mblock_rgnmap *rgnmap)
         kmem_cache_free(rgnmap->rm_cache, rgn);
 
     return key;
+}
+
+static merr_t
+mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
+{
+    struct mblock_rgn  *this;
+    struct rb_root     *root;
+    struct rb_node     *node, **new, *parent;
+
+    uint32_t start, end;
+    merr_t err = 0;
+
+    mutex_lock(&rgnmap->rm_lock);
+    root = &rgnmap->rm_root;
+    node = root->rb_node;
+
+    while (node) {
+        this = rb_entry(node, struct mblock_rgn, rgn_node);
+
+        if (key < this->rgn_start)
+            node = node->rb_left;
+        else if (key >= this->rgn_end)
+            node = node->rb_right;
+        else
+            break; /* Found overlapping node */
+    };
+
+    if (!node) {
+        err = merr(ENOENT);
+        goto exit;
+    }
+
+    if (key == this->rgn_start) {
+        this->rgn_start++;
+        if (this->rgn_start == this->rgn_end)
+            rb_erase(&this->rgn_node, root);
+        node = NULL;
+    } else if (key == this->rgn_end - 1) {
+        this->rgn_end--;
+        node = NULL;
+    }
+
+    if (!node)
+        goto exit;
+
+    /* Split the current node and find a position for the new node */
+    start = this->rgn_start;
+    end = key;
+    this->rgn_start = key + 1;
+
+    new = &node->rb_left;
+    parent = node;
+
+    while (*new) {
+        this = rb_entry(*new, struct mblock_rgn, rgn_node);
+        parent = *new;
+
+        if (this->rgn_end == start) {
+            this->rgn_end = end;
+            new = NULL;
+            break;
+        }
+
+        new = &(*new)->rb_right;
+    }
+
+    if (new) {
+        struct mblock_rgn *rgn;
+
+        /* Allocate new node and link it at parent */
+        rgn = kmem_cache_alloc(rgnmap->rm_cache);
+        if (ev(!rgn)) {
+            err = merr(ENOMEM);
+            goto exit;
+        }
+
+        rgn->rgn_start = start;
+        rgn->rgn_end = end;
+
+        rb_link_node(&rgn->rgn_node, parent, new);
+        rb_insert_color(&rgn->rgn_node, root);
+    }
+
+exit:
+    mutex_unlock(&rgnmap->rm_lock);
+
+    return err;
 }
 
 static merr_t
@@ -369,6 +371,266 @@ mblock_rgn_find(struct mblock_rgnmap *rgnmap, uint32_t key)
     return cur ? merr(ENOENT) : 0;
 }
 
+/**
+ * Mblock file meta interfaces.
+ */
+
+static uint32_t
+block_id(uint64_t mbid)
+{
+    return mbid & MBID_BLOCK_MASK;
+}
+
+static uint64_t
+block_off(uint64_t mbid)
+{
+    return ((uint64_t)block_id(mbid)) << MBLOCK_SIZE_SHIFT;
+}
+
+static uint32_t
+uniquifier(uint64_t mbid)
+{
+    return (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT;
+}
+
+size_t
+mblock_file_meta_len(void)
+{
+    size_t mblkc;
+
+    mblkc = MBLOCK_FILE_SIZE_MAX >> MBLOCK_SIZE_SHIFT;
+
+    return MBLOCK_FILE_META_HDRLEN + mblkc * MBLOCK_FILE_META_OIDLEN;
+}
+
+merr_t
+mblock_file_meta_init(struct mblock_file *mbfp, char *addr, int fd, off_t off)
+{
+    if (ev(!mbfp || !addr))
+        return merr(EINVAL);
+
+    mbfp->meta_fd = fd;
+    mbfp->meta_off = off;
+    mbfp->meta_addr = addr;
+
+    return 0;
+}
+
+merr_t
+mblock_file_meta_format(struct mblock_file *mbfp)
+{
+    struct mblock_filehdr fh = {};
+
+    char *addr;
+    int rc;
+
+    addr = mbfp->meta_addr;
+
+    fh.fileid = mbfp->fileid;
+    omf_mblock_filehdr_pack_htole(&fh, addr);
+
+    atomic_set(&mbfp->uniq, 1);
+
+    rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
+    if (ev(rc < 0))
+        return merr(errno);
+
+    return 0;
+}
+
+merr_t
+mblock_file_meta_load(struct mblock_file *mbfp)
+{
+    struct mblock_filehdr fh = {};
+    char *addr, *bound;
+    size_t mblkc = 0;
+    uint32_t uniqmax = 0;
+
+    addr = mbfp->meta_addr;
+
+    /* Validate per-file header */
+    omf_mblock_filehdr_unpack_letoh(&fh, addr);
+    if (fh.fileid != mbfp->fileid)
+        return merr(EBADMSG);
+
+    bound = addr + mblock_file_meta_len();
+    addr += MBLOCK_FILE_META_HDRLEN;
+
+    while (addr < bound) {
+        struct mblock_oid_omf *mbomf;
+        uint64_t mbid;
+        merr_t err;
+
+        mbomf = (struct mblock_oid_omf *)addr;
+
+        mbid = omf_mblk_id(mbomf);
+        if (mbid != 0) {
+            mblkc++; /* Debug */
+
+            err = mblock_file_insert(mbfp, mbid);
+            if (ev(err))
+                return merr(EBADMSG);
+
+            uniqmax = max_t(uint32_t, uniqmax, uniquifier(mbid));
+        }
+
+        addr += MBLOCK_FILE_META_OIDLEN;
+    }
+
+    atomic_set(&mbfp->uniq, uniqmax + 1);
+
+    hse_log(HSE_NOTICE "%s: mclass %d, file-id %d found %lu valid mblocks, uniqmax %u.",
+            __func__, mbfp->mcid, mbfp->fileid, mblkc, uniqmax);
+
+    return 0;
+}
+
+static merr_t
+mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
+{
+    struct mblock_oid_omf *mbomf;
+
+    uint32_t blockid;
+    char *addr;
+    int rc;
+    merr_t err = 0;
+
+    if (ev(!mbfp || !mbidv))
+        return merr(EINVAL);
+
+    if (mbidc > 1)
+        return merr(ENOTSUP);
+
+    addr = mbfp->meta_addr;
+    blockid = block_id(*mbidv);
+
+    addr += MBLOCK_FILE_META_HDRLEN;
+    addr += (blockid * MBLOCK_FILE_META_OIDLEN);
+
+    mbomf = (struct mblock_oid_omf *)addr;
+
+    mutex_lock(&mbfp->meta_lock);
+
+    omf_set_mblk_id(mbomf, delete ? 0 : *mbidv);
+
+    rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
+    if (ev(rc < 0))
+        err = merr(errno);
+
+    mutex_unlock(&mbfp->meta_lock);
+
+    return err;
+}
+
+/**
+ * Mblock file interfaces.
+ */
+
+merr_t
+mblock_file_open(
+    struct mblock_fset  *mbfsp,
+    int                  dirfd,
+    enum mclass_id       mcid,
+    int                  fileid,
+    char                *name,
+    int                  flags,
+    struct mblock_file **handle)
+{
+    struct mblock_file   *mbfp;
+
+    int fd,  rc;
+    merr_t   err;
+    char     rname[32];
+
+    if (ev(!mbfsp || !name || !handle))
+        return merr(EINVAL);
+
+    mbfp = calloc(1, sizeof(*mbfp));
+    if (ev(!mbfp))
+        return merr(ENOMEM);
+
+    mbfp->maxsz = MBLOCK_FILE_SIZE_MAX;
+
+    snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
+    err = mblock_rgnmap_init(mbfp, rname);
+    if (ev(err))
+        goto err_exit;
+
+    mbfp->mbfsp = mbfsp;
+    strlcpy(mbfp->dname, name, sizeof(mbfp->dname));
+
+    mbfp->mcid = mcid;
+    mbfp->fileid = fileid;
+
+    if (flags == 0 || !(flags & (O_RDWR | O_RDONLY | O_WRONLY)))
+        flags |= O_RDWR;
+
+    flags &= O_RDWR | O_RDONLY | O_WRONLY | O_CREAT;
+
+    if (flags & O_CREAT)
+        flags |= O_EXCL;
+
+    fd = openat(dirfd, name, flags | O_DIRECT | O_SYNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        err = merr(errno);
+        hse_elog(HSE_ERR "open/create data file failed, file name %s: @@e", err, name);
+        goto err_exit;
+    }
+
+    /* ftruncate to the maximum size to make it a sparse file */
+    rc = ftruncate(fd, mbfp->maxsz);
+    if (rc < 0) {
+        err = merr(errno);
+        close(fd);
+        hse_elog(HSE_ERR "Truncating data file failed, file name %s: @@e", err, name);
+        goto err_exit;
+    }
+
+    mbfp->data_fd = fd;
+    mbfp->io = &io_sync_ops;
+
+    mutex_init(&mbfp->meta_lock);
+
+    *handle = mbfp;
+
+    return 0;
+
+    err_exit:
+    if (mbfp->rgnmap.rm_cache)
+        kmem_cache_destroy(mbfp->rgnmap.rm_cache);
+
+    free(mbfp);
+
+    return err;
+}
+
+void
+mblock_file_close(struct mblock_file *mbfp)
+{
+    struct mblock_rgnmap *rgnmap;
+    struct mblock_rgn    *rgn, *next;
+
+    if (!mbfp)
+        return;
+
+    rgnmap = &mbfp->rgnmap;
+
+    rbtree_postorder_for_each_entry_safe(rgn, next, &rgnmap->rm_root, rgn_node) {
+        kmem_cache_free(rgnmap->rm_cache, rgn);
+    }
+
+    close(mbfp->data_fd);
+
+    free(mbfp);
+}
+
+
+merr_t
+mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid)
+{
+    return mblock_rgn_insert(&mbfp->rgnmap, block_id(mbid) + 1);
+}
+
 merr_t
 mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
 {
@@ -423,8 +685,8 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 merr_t
 mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
-    int rc;
     merr_t err;
+    bool delete = false;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -436,12 +698,9 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (ev(err))
         return err;
 
-    /* Sync file metadata and disk cache */
-    rc = fsync(mbfp->fd);
-    if (rc < 0)
-        return merr(errno);
-
-    /* TODO: Persist the allocation state of mblock ID on-media */
+    err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
+    if (ev(err))
+        return err;
 
     return 0;
 }
@@ -473,6 +732,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     uint64_t block;
     merr_t   err;
     int rc;
+    bool delete = true;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -482,16 +742,19 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 
     block = block_id(*mbidv);
 
-    err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
+    /* First log the delete */
+    err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
     if (ev(err))
         return err;
 
     /* Discard mblock */
-    rc = fallocate(mbfp->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+    rc = fallocate(mbfp->data_fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                    block_off(*mbidv), MBLOCK_SIZE_BYTES);
     ev(rc);
 
-    /* TODO: Persist the allocation state of mblock ID on media */
+    err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
+    if (ev(err))
+        return err;
 
     return 0;
 }
@@ -505,7 +768,7 @@ mblock_file_read(
 	off_t               off)
 {
     uint64_t roff;
-    bool verify = false; /* TODO: Toggle after adding persisting mblocks */
+    bool verify = true;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
@@ -526,7 +789,7 @@ mblock_file_read(
     roff = block_off(mbid);
     roff += off;
 
-    return mbfp->io->read(mbfp->fd, roff, (const struct iovec *)iov, iovc, 0);
+    return mbfp->io->read(mbfp->data_fd, roff, (const struct iovec *)iov, iovc, 0);
 }
 
 merr_t
@@ -538,7 +801,7 @@ mblock_file_write(
 	off_t               off)
 {
     uint64_t woff;
-    merr_t   err;
+    bool verify = true;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
@@ -548,12 +811,16 @@ mblock_file_write(
     if (iovc == 0)
         return 0;
 
-    err = mblock_file_find(mbfp, &mbid, 1);
-    if (ev(err))
-        return err;
+    if (verify) {
+        merr_t err;
+
+        err = mblock_file_find(mbfp, &mbid, 1);
+        if (ev(err))
+            return err;
+    }
 
     woff = block_off(mbid);
     woff += off;
 
-    return mbfp->io->write(mbfp->fd, woff, (const struct iovec *)iov, iovc, 0);
+    return mbfp->io->write(mbfp->data_fd, woff, (const struct iovec *)iov, iovc, 0);
 }

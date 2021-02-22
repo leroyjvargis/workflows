@@ -10,11 +10,23 @@
 
 #include "mblock_file.h"
 
+#define MBLOCK_METAHDR_VERSION     1
+#define MBLOCK_METAHDR_MAGIC       0xffaaccee
+
 #define MBLOCK_FSET_FILES_MAX      (1 << MBID_FILEID_BITS)
 #define MBLOCK_FSET_FILES_DEFAULT   32
 
 struct mblock_file;
 struct mblock_fset;
+
+struct mblock_metahdr {
+    uint32_t   vers;
+    uint32_t   magic;
+    uint8_t    mcid;
+    uint8_t    fcnt;
+    uint8_t    blkbits;
+    uint8_t    mcbits;
+};
 
 /**
  * mblock_fset_open() - open an mblock fileset

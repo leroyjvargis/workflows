@@ -8,7 +8,7 @@
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
-#include "mblock.h"
+#include "mblock_file.h"
 
 merr_t
 mpool_mclass_add(

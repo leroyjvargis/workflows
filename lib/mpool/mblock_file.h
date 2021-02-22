@@ -9,9 +9,14 @@
 #include <hse_util/hse_err.h>
 
 #include "mclass.h"
-#include "mblock.h"
 
-#define MBID_FILEID_BITS  (8)
+#define MBID_FILEID_BITS         (8)
+#define MBID_MCID_BITS           (2)
+#define MBID_BLOCK_BITS          (16)
+
+#define MBLOCK_SIZE_MB           (32)
+#define MBLOCK_SIZE_BYTES        (MBLOCK_SIZE_MB << 20)
+#define MBLOCK_SIZE_SHIFT        (25)
 
 /**
  * Mblock ID in-memory layout
@@ -42,6 +47,13 @@ struct mblock_fset;
 struct mblock_file;
 struct io_ops;
 
+struct mblock_filehdr {
+    uint8_t    fileid;
+    uint8_t    rsvd1;
+    uint16_t   rsvd2;
+    uint32_t   rsvd3;
+};
+
 static inline int
 file_id(uint64_t mbid)
 {
@@ -59,19 +71,6 @@ mclassid(uint64_t mbid)
 {
     return (mbid & MBID_MCID_MASK) >> MBID_MCID_SHIFT;
 }
-
-static inline uint32_t
-block_id(uint64_t mbid)
-{
-    return mbid & MBID_BLOCK_MASK;
-}
-
-static inline uint64_t
-block_off(uint64_t mbid)
-{
-    return ((uint64_t)block_id(mbid)) << MBLOCK_SIZE_SHIFT;
-}
-
 
 /**
  * mblock_file_open() - open an mblock file
@@ -178,6 +177,21 @@ mblock_file_write(
 
 merr_t
 mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);
+
+size_t
+mblock_file_meta_len(void);
+
+merr_t
+mblock_file_meta_init(struct mblock_file *mbfp, char *addr, int fd, off_t off);
+
+merr_t
+mblock_file_meta_format(struct mblock_file *mbfp);
+
+merr_t
+mblock_file_meta_load(struct mblock_file *mbfp);
 
 #endif /* MPOOL_MBLOCK_FILE_H */
 
