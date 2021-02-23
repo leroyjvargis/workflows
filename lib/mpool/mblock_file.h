@@ -48,10 +48,10 @@ struct mblock_file;
 struct io_ops;
 
 struct mblock_filehdr {
+    uint32_t   uniq;
     uint8_t    fileid;
     uint8_t    rsvd1;
     uint16_t   rsvd2;
-    uint32_t   rsvd3;
 };
 
 static inline int

@@ -120,10 +120,10 @@ omf_mblock_filehdr_pack_htole(struct mblock_filehdr *fh, char *outbuf)
 
     fhomf = (struct mblock_filehdr_omf *)outbuf;
 
+    omf_set_fh_uniq(fhomf, fh->uniq);
     omf_set_fh_fileid(fhomf, fh->fileid);
     omf_set_fh_rsvd1(fhomf, fh->rsvd1);
     omf_set_fh_rsvd2(fhomf, fh->rsvd2);
-    omf_set_fh_rsvd3(fhomf, fh->rsvd3);
 }
 
 void
@@ -133,8 +133,8 @@ omf_mblock_filehdr_unpack_letoh(struct mblock_filehdr *fh, const char *inbuf)
 
     fhomf = (struct mblock_filehdr_omf *)inbuf;
 
+    fh->uniq = omf_fh_uniq(fhomf);
     fh->fileid = omf_fh_fileid(fhomf);
     fh->rsvd1 = omf_fh_rsvd1(fhomf);
     fh->rsvd2 = omf_fh_rsvd2(fhomf);
-    fh->rsvd3 = omf_fh_rsvd3(fhomf);
 }

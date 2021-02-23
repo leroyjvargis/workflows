@@ -81,17 +81,17 @@ OMF_SETGET(struct mblock_metahdr_omf, mh_mcbits, 8);
 
 
 struct mblock_filehdr_omf {
+    __le32 fh_uniq;
     u8     fh_fileid;
     u8     fh_rsvd1;
     __le16 fh_rsvd2;
-    __le32 fh_rsvd3;
 } __packed;
 
 /* Define set/get methods for mblock_filehdr_omf */
+OMF_SETGET(struct mblock_filehdr_omf, fh_uniq, 32);
 OMF_SETGET(struct mblock_filehdr_omf, fh_fileid, 8);
 OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd1, 8);
 OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
-OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd3, 32);
 
 
 struct mblock_oid_omf {

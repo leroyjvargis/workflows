@@ -30,6 +30,8 @@
 
 #define MBLOCK_FILE_SIZE_MAX     ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
 
+#define MBLOCK_FILE_UNIQ_DELTA   (1024)
+
 
 /**
  * struct mblock_rgn -
@@ -76,11 +78,14 @@ struct mblock_file {
     const struct io_ops    *io;
 
     size_t                  maxsz;
-
     enum mclass_id          mcid;
-    atomic_t                uniq;
     int                     fileid;
 
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex            uniq_lock;
+    uint32_t                uniq;
+
+    __aligned(SMP_CACHE_BYTES)
     struct mutex            meta_lock;
     char                   *meta_addr;
     int                     meta_fd;
@@ -177,7 +182,7 @@ mblock_rgn_alloc(struct mblock_rgnmap *rgnmap)
 static merr_t
 mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
 {
-    struct mblock_rgn  *this;
+    struct mblock_rgn  *this, *to_free = NULL;
     struct rb_root     *root;
     struct rb_node     *node, **new, *parent;
 
@@ -206,8 +211,10 @@ mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
 
     if (key == this->rgn_start) {
         this->rgn_start++;
-        if (this->rgn_start == this->rgn_end)
+        if (this->rgn_start == this->rgn_end) {
             rb_erase(&this->rgn_node, root);
+            to_free = this;
+        }
         node = NULL;
     } else if (key == this->rgn_end - 1) {
         this->rgn_end--;
@@ -257,6 +264,9 @@ mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
 
 exit:
     mutex_unlock(&rgnmap->rm_lock);
+
+    if (to_free)
+        kmem_cache_free(rgnmap->rm_cache, to_free);
 
     return err;
 }
@@ -387,12 +397,6 @@ block_off(uint64_t mbid)
     return ((uint64_t)block_id(mbid)) << MBLOCK_SIZE_SHIFT;
 }
 
-static uint32_t
-uniquifier(uint64_t mbid)
-{
-    return (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT;
-}
-
 size_t
 mblock_file_meta_len(void)
 {
@@ -416,20 +420,15 @@ mblock_file_meta_init(struct mblock_file *mbfp, char *addr, int fd, off_t off)
     return 0;
 }
 
-merr_t
-mblock_file_meta_format(struct mblock_file *mbfp)
+static merr_t
+meta_format_impl(struct mblock_file *mbfp, struct mblock_filehdr *fh)
 {
-    struct mblock_filehdr fh = {};
-
     char *addr;
     int rc;
 
     addr = mbfp->meta_addr;
 
-    fh.fileid = mbfp->fileid;
-    omf_mblock_filehdr_pack_htole(&fh, addr);
-
-    atomic_set(&mbfp->uniq, 1);
+    omf_mblock_filehdr_pack_htole(fh, addr);
 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
     if (ev(rc < 0))
@@ -439,12 +438,21 @@ mblock_file_meta_format(struct mblock_file *mbfp)
 }
 
 merr_t
+mblock_file_meta_format(struct mblock_file *mbfp)
+{
+    struct mblock_filehdr fh = {};
+
+    fh.fileid = mbfp->fileid;
+
+    return meta_format_impl(mbfp, &fh);
+}
+
+merr_t
 mblock_file_meta_load(struct mblock_file *mbfp)
 {
     struct mblock_filehdr fh = {};
     char *addr, *bound;
     size_t mblkc = 0;
-    uint32_t uniqmax = 0;
 
     addr = mbfp->meta_addr;
 
@@ -452,6 +460,8 @@ mblock_file_meta_load(struct mblock_file *mbfp)
     omf_mblock_filehdr_unpack_letoh(&fh, addr);
     if (fh.fileid != mbfp->fileid)
         return merr(EBADMSG);
+
+    mbfp->uniq = fh.uniq + MBLOCK_FILE_UNIQ_DELTA;
 
     bound = addr + mblock_file_meta_len();
     addr += MBLOCK_FILE_META_HDRLEN;
@@ -470,17 +480,13 @@ mblock_file_meta_load(struct mblock_file *mbfp)
             err = mblock_file_insert(mbfp, mbid);
             if (ev(err))
                 return merr(EBADMSG);
-
-            uniqmax = max_t(uint32_t, uniqmax, uniquifier(mbid));
         }
 
         addr += MBLOCK_FILE_META_OIDLEN;
     }
 
-    atomic_set(&mbfp->uniq, uniqmax + 1);
-
-    hse_log(HSE_NOTICE "%s: mclass %d, file-id %d found %lu valid mblocks, uniqmax %u.",
-            __func__, mbfp->mcid, mbfp->fileid, mblkc, uniqmax);
+    hse_log(HSE_NOTICE "%s: mclass %d, file-id %d found %lu valid mblocks, uniq %u.",
+            __func__, mbfp->mcid, mbfp->fileid, mblkc, mbfp->uniq);
 
     return 0;
 }
@@ -589,13 +595,14 @@ mblock_file_open(
     mbfp->data_fd = fd;
     mbfp->io = &io_sync_ops;
 
+    mutex_init(&mbfp->uniq_lock);
     mutex_init(&mbfp->meta_lock);
 
     *handle = mbfp;
 
     return 0;
 
-    err_exit:
+err_exit:
     if (mbfp->rgnmap.rm_cache)
         kmem_cache_destroy(mbfp->rgnmap.rm_cache);
 
@@ -619,6 +626,8 @@ mblock_file_close(struct mblock_file *mbfp)
         kmem_cache_free(rgnmap->rm_cache, rgn);
     }
 
+    kmem_cache_destroy(rgnmap->rm_cache);
+
     close(mbfp->data_fd);
 
     free(mbfp);
@@ -631,11 +640,38 @@ mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid)
     return mblock_rgn_insert(&mbfp->rgnmap, block_id(mbid) + 1);
 }
 
+static merr_t
+mblock_uniq_gen(struct mblock_file *mbfp, uint32_t *uniqout)
+{
+    uint32_t uniq;
+    merr_t   err = 0;
+
+    mutex_lock(&mbfp->uniq_lock);
+
+    uniq = ++mbfp->uniq;
+    if (uniq % MBLOCK_FILE_UNIQ_DELTA == 0) {
+        struct mblock_filehdr fh = {};
+
+        fh.fileid = mbfp->fileid;
+        fh.uniq = uniq;
+
+        err = meta_format_impl(mbfp, &fh);
+    }
+
+    mutex_unlock(&mbfp->uniq_lock);
+
+    if (!err && uniqout)
+        *uniqout = uniq;
+
+    return err;
+}
+
 merr_t
 mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
 {
     uint64_t mbid;
     uint32_t block, uniq;
+    merr_t   err;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -647,15 +683,15 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
     if (block == 0)
         return merr(ENOSPC);
 
-    uniq = atomic_fetch_add(1, &mbfp->uniq);
+    err = mblock_uniq_gen(mbfp, &uniq);
+    if (ev(err))
+        return err;
 
     mbid = 0;
     mbid |= (((uint64_t)uniq << MBID_UNIQ_SHIFT) & MBID_UNIQ_MASK);
     mbid |= (((uint64_t)mbfp->fileid << MBID_FILEID_SHIFT) & MBID_FILEID_MASK);
     mbid |= (((uint64_t)mbfp->mcid << MBID_MCID_SHIFT) & MBID_MCID_MASK);
     mbid |= ((block - 1) & MBID_BLOCK_MASK);
-
-    /* TODO: Persist uniquifier on-media every 'n' allocations. */
 
     *mbidv = mbid;
 
