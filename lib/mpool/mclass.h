@@ -39,6 +39,7 @@ mclass_open(
     struct mpool        *mp,
     enum mp_media_classp mclass,
     const char          *dpath,
+    uint8_t              fcnt,
     int                  flags,
     struct media_class **handle);
 

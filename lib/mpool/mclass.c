@@ -62,6 +62,7 @@ mclass_open(
     struct mpool        *mp,
     enum mp_media_classp mclass,
     const char          *dpath,
+    uint8_t              fcnt,
     int                  flags,
     struct media_class **handle)
 {
@@ -99,7 +100,7 @@ mclass_open(
 
     strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
 
-    err = mblock_fset_open(mc, flags, &mc->mbfsp);
+    err = mblock_fset_open(mc, fcnt, flags, &mc->mbfsp);
     if (err) {
         hse_elog(HSE_ERR "Opening data files failed, mclass %d: @@e", err, mclass);
         goto err_exit1;

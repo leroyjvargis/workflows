@@ -18,6 +18,8 @@
 #define MBLOCK_SIZE_BYTES        (MBLOCK_SIZE_MB << 20)
 #define MBLOCK_SIZE_SHIFT        (25)
 
+#define MBLOCK_DATA_FILE_PFX     "mblock-data"
+
 /**
  * Mblock ID in-memory layout
  *
@@ -75,9 +77,7 @@ mclassid(uint64_t mbid)
 /**
  * mblock_file_open() - open an mblock file
  *
- * @fs:    mblock fileset handle
- * @dirfd: mclass directory fd
- * @name:  file name
+ * @mbfsp:    mblock fileset handle
  * @flags: open flags
  * @handle(output): mblock file handle
  *
@@ -85,11 +85,10 @@ mclassid(uint64_t mbid)
 merr_t
 mblock_file_open(
     struct mblock_fset  *mbfsp,
-    int                  dirfd,
-    enum mclass_id       mcid,
+    struct media_class  *mc,
     int                  fileid,
-    char                *name,
     int                  flags,
+    char                *meta_addr,
     struct mblock_file **handle);
 
 /**
@@ -183,15 +182,6 @@ mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);
 
 size_t
 mblock_file_meta_len(void);
-
-merr_t
-mblock_file_meta_init(struct mblock_file *mbfp, char *addr, int fd, off_t off);
-
-merr_t
-mblock_file_meta_format(struct mblock_file *mbfp);
-
-merr_t
-mblock_file_meta_load(struct mblock_file *mbfp);
 
 #endif /* MPOOL_MBLOCK_FILE_H */
 

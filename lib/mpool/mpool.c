@@ -42,8 +42,9 @@ mpool_open(
     struct mpool *mp;
 
     const char *mc_key[MP_MED_COUNT] = {"kvdb.capdir", "kvdb.stgdir"};
+    char        fbuf[4];
     merr_t      err;
-    int         i;
+    int         i, fcnt = 0;
 
     *handle = NULL;
 
@@ -54,12 +55,18 @@ mpool_open(
     if (ev(!mp))
         return merr(ENOMEM);
 
+    /* Extract the experimental filecnt parameter */
+    if (hse_params_get(params, "kvdb.filecnt", fbuf, sizeof(fbuf), NULL)) {
+        if (fbuf[0] != '\0')
+            fcnt = atoi(fbuf);
+    }
+
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         char dpath[PATH_MAX];
 
         if (hse_params_get(params, mc_key[i], dpath, sizeof(dpath), NULL)) {
             if (dpath[0] != '\0') {
-                err = mclass_open(mp, i, dpath, flags, &mp->mc[i]);
+                err = mclass_open(mp, i, dpath, fcnt, flags, &mp->mc[i]);
                 if (ev(err)) {
                     hse_log(HSE_ERR "Malformed storage path for mclass %s", mc_key[i]);
                     goto errout;

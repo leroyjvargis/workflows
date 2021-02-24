@@ -16,13 +16,14 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
+#include <hse_util/string.h>
 
 #include "omf.h"
 #include "mclass.h"
 #include "mblock_fset.h"
 #include "mblock_file.h"
 
-#define MBLOCK_FSET_HDR_LEN    (4096)
+#define MBLOCK_FSET_HDRLEN    (4096)
 
 /**
  * struct mblock_fset - mblock fileset instance
@@ -63,7 +64,6 @@ mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
     return (mh->vers == MBLOCK_METAHDR_VERSION) &&
         (mh->magic == MBLOCK_METAHDR_MAGIC) &&
         (mh->mcid == mclass_id(mbfsp->mc)) &&
-        (mh->fcnt == mbfsp->fcnt) &&
         (mh->blkbits == MBID_BLOCK_BITS) &&
         (mh->mcbits == MBID_MCID_BITS);
 }
@@ -72,127 +72,179 @@ static void
 mblock_fset_meta_get(
     struct mblock_fset  *mbfsp,
     int                  fidx,
-    char               **maddr,
-    off_t               *off)
+    char               **maddr)
 {
-    *off = MBLOCK_FSET_HDR_LEN + (fidx * mblock_file_meta_len());
-    *maddr = mbfsp->maddr + *off;
+    off_t off;
+
+    off = MBLOCK_FSET_HDRLEN + (fidx * mblock_file_meta_len());
+    *maddr = mbfsp->maddr + off;
+}
+
+static merr_t
+mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz)
+{
+    int prot;
+    char *addr;
+
+    prot = PROT_READ | PROT_WRITE;
+    addr = mmap(NULL, sz, prot, MAP_SHARED, fd, 0);
+    if (ev(addr == MAP_FAILED))
+        return merr(errno);
+
+    mbfsp->maddr = addr;
+
+    return 0;
+}
+
+static void
+mblock_fset_meta_unmap(struct mblock_fset *mbfsp, size_t sz)
+{
+    if (mbfsp->maddr)
+        munmap(mbfsp->maddr, sz);
+    mbfsp->maddr = NULL;
 }
 
 static merr_t
 mblock_fset_meta_format(struct mblock_fset *mbfsp)
 {
     struct mblock_metahdr mh = {};
-    char *addr;
-    int rc, i;
 
-    mblock_metahdr_init(mbfsp, &mh);
+    char *addr;
+    int rc, len = MBLOCK_FSET_HDRLEN;
+    merr_t err = 0;
+    bool unmap = false;
 
     addr = mbfsp->maddr;
-
-    /* Format meta header */
-    omf_mblock_metahdr_pack_htole(&mh, addr);
-    rc = msync(addr, MBLOCK_FSET_HDR_LEN, MS_SYNC);
-    if (ev(rc < 0))
-        return merr(errno);
-
-    for (i = 0; i < mbfsp->fcnt; i++) {
-        merr_t err;
-
-        err = mblock_file_meta_format(mbfsp->filev[i]);
+    if (!addr) {
+        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len);
         if (ev(err))
             return err;
+
+        addr = mbfsp->maddr;
+        unmap = true;
     }
 
-    return 0;
+    mblock_metahdr_init(mbfsp, &mh);
+    omf_mblock_metahdr_pack_htole(&mh, addr);
+
+    rc = msync(addr, len, MS_SYNC);
+    if (ev(rc < 0))
+        err = merr(errno);
+
+    if (unmap)
+        mblock_fset_meta_unmap(mbfsp, len);
+
+    return err;
 }
 
 static merr_t
 mblock_fset_meta_load(struct mblock_fset *mbfsp)
 {
     struct mblock_metahdr mh = {};
-    int i;
-    bool valid;
 
-    /* Validate meta header */
-    omf_mblock_metahdr_unpack_letoh(&mh, mbfsp->maddr);
-    valid = mblock_metahdr_validate(mbfsp, &mh);
-    if (!valid)
-        return merr(EBADMSG);
+    bool valid, unmap = false;
+    char *addr;
+    merr_t err = 0;
+    int len = MBLOCK_FSET_HDRLEN;
 
-    for (i = 0; i < mbfsp->fcnt; i++) {
-        merr_t err;
-
-        err = mblock_file_meta_load(mbfsp->filev[i]);
+    addr = mbfsp->maddr;
+    if (!addr) {
+        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len);
         if (ev(err))
             return err;
+
+        addr = mbfsp->maddr;
+        unmap = true;
     }
 
-    return 0;
+    /* Validate meta header */
+    omf_mblock_metahdr_unpack_letoh(&mh, addr);
+    valid = mblock_metahdr_validate(mbfsp, &mh);
+    if (!valid)
+        err = merr(EBADMSG);
+
+    if (!err && mh.fcnt != 0)
+        mbfsp->fcnt = mh.fcnt;
+
+    if (unmap)
+        mblock_fset_meta_unmap(mbfsp, len);
+
+    return err;
+}
+
+static void
+mblock_fset_meta_close(struct mblock_fset *mbfsp)
+{
+    if (mbfsp->maddr) {
+        msync(mbfsp->maddr, mbfsp->metasz, MS_SYNC);
+        mblock_fset_meta_unmap(mbfsp, mbfsp->metasz);
+    }
+
+    if (mbfsp->metafd != -1) {
+        close(mbfsp->metafd);
+        mbfsp->metafd = -1;
+    }
+}
+
+static void
+mblock_fset_meta_remove(int dirfd, const char *name)
+{
+    unlinkat(dirfd, name, 0);
+}
+
+static void
+mblock_fset_free(struct mblock_fset *mbfsp)
+{
+    free(mbfsp->filev);
+    free(mbfsp);
 }
 
 /* Init metadata file that persists mblocks in the data files */
 static merr_t
-mblock_fset_meta_open(struct mblock_fset *mbfsp)
+mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 {
-    int fd, flags, prot, rc, dirfd, i;
+    int fd, dirfd, rc;
     merr_t err;
-    size_t metasz;
-    char *addr;
-    bool format = false;
+    bool create = false;
 
-    if (ev(!mbfsp))
-        return merr(EINVAL);
+    mbfsp->metafd = -1;
 
-    snprintf(mbfsp->mname, sizeof(mbfsp->mname),
-             "%s-%d", "mblock-meta", mclass_id(mbfsp->mc));
+    flags &= O_RDWR | O_CREAT;
+    if (flags & O_CREAT) {
+        flags |= O_EXCL;
+        create = true;
+    }
+    flags |= O_RDWR;
 
+    snprintf(mbfsp->mname, sizeof(mbfsp->mname), "%s-%d", "mblock-meta", mclass_id(mbfsp->mc));
     dirfd = mclass_dirfd(mbfsp->mc);
 
-    /* Determine if metadata file needs formatting. */
     rc = faccessat(dirfd, mbfsp->mname, F_OK, 0);
-    if (rc < 0 && errno == ENOENT)
-        format = true;
+    if (rc < 0 && errno == ENOENT && !create)
+        return merr(ENOENT);
+    if (rc == 0 && create)
+        return merr(EEXIST);
 
-    fd = openat(dirfd, mbfsp->mname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "open/create meta file failed, mclass dir %s: @@e",
-                 err, mclass_dpath(mbfsp->mc));
-    }
-
+    fd = openat(dirfd, mbfsp->mname, flags, S_IRUSR | S_IWUSR);
+    if (fd < 0)
+        return merr(errno);
     mbfsp->metafd = fd;
 
-    metasz = MBLOCK_FSET_HDR_LEN + (mbfsp->fcnt * mblock_file_meta_len());
-    mbfsp->metasz = metasz;
-
     /* Preallocate metadata file. */
-    rc = fallocate(fd, 0, 0, metasz);
-    if (ev(rc < 0)) {
-        err = merr(rc);
-        goto errout;
+    if (create) {
+        size_t sz;
+
+        assert(mbfsp->fcnt != 0);
+        sz = MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len());
+
+        rc = fallocate(fd, 0, 0, sz);
+        if (ev(rc < 0)) {
+            err = merr(rc);
+            goto errout;
+        }
     }
 
-    flags = MAP_SHARED;
-    prot = PROT_READ | PROT_WRITE;
-
-    addr = mmap(NULL, metasz, prot, flags, fd, 0);
-    if (ev(addr == MAP_FAILED)) {
-        err = merr(errno);
-        goto errout;
-    }
-    mbfsp->maddr = addr;
-
-    for (i = 0; i < mbfsp->fcnt; i++) {
-        char *addr;
-        off_t off;
-
-        mblock_fset_meta_get(mbfsp, i, &addr, &off);
-
-        mblock_file_meta_init(mbfsp->filev[i], addr, mbfsp->metafd, off);
-    }
-
-    if (format)
+    if (create)
         err = mblock_fset_meta_format(mbfsp);
     else
         err = mblock_fset_meta_load(mbfsp);
@@ -202,77 +254,72 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp)
     return 0;
 
 errout:
-    if (mbfsp->maddr)
-        munmap(mbfsp->maddr, metasz);
-    close(fd);
+    mblock_fset_meta_close(mbfsp);
+    if (create)
+        mblock_fset_meta_remove(dirfd, mbfsp->mname);
 
     return err;
 }
 
-static void
-mblock_fset_meta_close(struct mblock_fset *mbfsp)
-{
-    msync(mbfsp->maddr, mbfsp->metasz, MS_SYNC);
-    munmap(mbfsp->maddr, mbfsp->metasz);
-    close(mbfsp->metafd);
-}
-
-static void
-mblock_fset_meta_remove(const char *dpath, int mcid)
-{
-    char path[PATH_MAX];
-
-    snprintf(path, sizeof(path), "%s/%s-%d", dpath, "mblock-meta", mcid);
-
-    remove(path);
-}
-
 merr_t
-mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
+mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_fset **handle)
 {
     struct mblock_fset *mbfsp;
 
     size_t sz;
     merr_t err;
-    int    i = 0;
+    int    i;
 
     if (ev(!mc || !handle))
         return merr(EINVAL);
 
-    sz = sizeof(*mbfsp) + MBLOCK_FSET_FILES_DEFAULT * sizeof(void *);
-
-    mbfsp = calloc(1, sz);
+    mbfsp = calloc(1, sizeof(*mbfsp));
     if (ev(!mbfsp))
         return merr(ENOMEM);
 
     mbfsp->mc = mc;
-    atomic64_set(&mbfsp->fidx, 0);
-    mbfsp->fcnt = MBLOCK_FSET_FILES_DEFAULT;
-    mbfsp->filev = (void *)(mbfsp + 1);
+    mbfsp->fcnt = fcnt ? : MBLOCK_FSET_FILES_DEFAULT;
 
-    for (i = 0; i < mbfsp->fcnt; i++) {
-        char name[32];
-
-        snprintf(name, sizeof(name), "%s-%d-%d", "mblock-data", mclass_id(mc), i + 1);
-
-        err = mblock_file_open(mbfsp, mclass_dirfd(mc), mclass_id(mc), i + 1, name,
-                               flags, &mbfsp->filev[i]);
-        if (ev(err))
-            goto err_exit;
+    err = mblock_fset_meta_open(mbfsp, flags);
+    if (ev(err)) {
+        mblock_fset_free(mbfsp);
+        return err;
     }
 
-    err = mblock_fset_meta_open(mbfsp);
+    mbfsp->metasz = MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len());
+
+    err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz);
     if (ev(err))
-        goto err_exit;
+        goto errout;
+
+    sz = mbfsp->fcnt * sizeof(*mbfsp->filev);
+    mbfsp->filev = calloc(1, sz);
+    if (ev(!mbfsp->filev)) {
+        err = merr(ENOMEM);
+        goto errout;
+    }
+
+    for (i = 0; i < mbfsp->fcnt; i++) {
+        char *addr;
+
+        mblock_fset_meta_get(mbfsp, i, &addr);
+
+        err = mblock_file_open(mbfsp, mc, i + 1, flags, addr, &mbfsp->filev[i]);
+        if (ev(err))
+            goto errout;
+    }
+
+    atomic64_set(&mbfsp->fidx, 0);
 
     *handle = mbfsp;
 
     return 0;
 
-err_exit:
-    while (i-- > 0)
-        mblock_file_close(mbfsp->filev[i]);
-    free(mbfsp);
+errout:
+    if (flags & O_CREAT)
+        mblock_fset_remove(mbfsp); /* Remove data and meta files */
+    else
+        mblock_fset_close(mbfsp);
 
     return err;
 }
@@ -280,24 +327,28 @@ err_exit:
 void
 mblock_fset_close(struct mblock_fset *mbfsp)
 {
-    int i;
-
     if (ev(!mbfsp))
         return;
 
-    i = mbfsp->fcnt;
-    while (i-- > 0)
-        mblock_file_close(mbfsp->filev[i]);
+    if (mbfsp->filev) {
+        int i = mbfsp->fcnt;
+
+        while (i-- > 0) {
+            mblock_file_close(mbfsp->filev[i]);
+            mbfsp->filev[i] = NULL;
+        }
+    }
 
     mblock_fset_meta_close(mbfsp);
 
+    free(mbfsp->filev);
     free(mbfsp);
 }
 
 static int
 mblock_fset_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-    if (strstr(path, "mblock-data"))
+    if (strstr(path, MBLOCK_DATA_FILE_PFX))
         return remove(path);
 
     return 0;
@@ -307,16 +358,18 @@ void
 mblock_fset_remove(struct mblock_fset *mbfsp)
 {
     const char *dpath;
-    int mcid;
+    char name[32];
+    int dirfd;
 
+    dirfd = mclass_dirfd(mbfsp->mc);
     dpath = mclass_dpath(mbfsp->mc);
-    mcid = mclass_id(mbfsp->mc);
+    strlcpy(name, mbfsp->mname, sizeof(name));
 
     mblock_fset_close(mbfsp);
 
-    nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_DEFAULT, FTW_DEPTH | FTW_PHYS);
+    nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_MAX, FTW_DEPTH | FTW_PHYS);
 
-    mblock_fset_meta_remove(dpath, mcid);
+    mblock_fset_meta_remove(dirfd, name);
 }
 
 merr_t

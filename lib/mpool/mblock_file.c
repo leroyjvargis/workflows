@@ -24,6 +24,7 @@
 #include "mblock_file.h"
 #include "io.h"
 #include "omf.h"
+#include "mclass.h"
 
 #define MBLOCK_FILE_META_HDRLEN  (4096)
 #define MBLOCK_FILE_META_OIDLEN  (8)
@@ -80,6 +81,7 @@ struct mblock_file {
     size_t                  maxsz;
     enum mclass_id          mcid;
     int                     fileid;
+    int                     data_fd;
 
     __aligned(SMP_CACHE_BYTES)
     struct mutex            uniq_lock;
@@ -88,12 +90,6 @@ struct mblock_file {
     __aligned(SMP_CACHE_BYTES)
     struct mutex            meta_lock;
     char                   *meta_addr;
-    int                     meta_fd;
-    off_t                   meta_off;
-
-    int                     data_fd;
-    char                    dname[32];
-
 };
 
 /**
@@ -407,21 +403,8 @@ mblock_file_meta_len(void)
     return MBLOCK_FILE_META_HDRLEN + mblkc * MBLOCK_FILE_META_OIDLEN;
 }
 
-merr_t
-mblock_file_meta_init(struct mblock_file *mbfp, char *addr, int fd, off_t off)
-{
-    if (ev(!mbfp || !addr))
-        return merr(EINVAL);
-
-    mbfp->meta_fd = fd;
-    mbfp->meta_off = off;
-    mbfp->meta_addr = addr;
-
-    return 0;
-}
-
 static merr_t
-meta_format_impl(struct mblock_file *mbfp, struct mblock_filehdr *fh)
+mblock_file_meta_format(struct mblock_file *mbfp, struct mblock_filehdr *fh)
 {
     char *addr;
     int rc;
@@ -437,17 +420,7 @@ meta_format_impl(struct mblock_file *mbfp, struct mblock_filehdr *fh)
     return 0;
 }
 
-merr_t
-mblock_file_meta_format(struct mblock_file *mbfp)
-{
-    struct mblock_filehdr fh = {};
-
-    fh.fileid = mbfp->fileid;
-
-    return meta_format_impl(mbfp, &fh);
-}
-
-merr_t
+static merr_t
 mblock_file_meta_load(struct mblock_file *mbfp)
 {
     struct mblock_filehdr fh = {};
@@ -535,46 +508,70 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 merr_t
 mblock_file_open(
     struct mblock_fset  *mbfsp,
-    int                  dirfd,
-    enum mclass_id       mcid,
+    struct media_class  *mc,
     int                  fileid,
-    char                *name,
     int                  flags,
+    char                *meta_addr,
     struct mblock_file **handle)
 {
     struct mblock_file   *mbfp;
+    enum mclass_id mcid;
 
-    int fd,  rc;
-    merr_t   err;
-    char     rname[32];
+    int      fd, rc, dirfd;
+    merr_t   err = 0;
+    char     name[32], rname[32];
+    bool     create = false;
 
-    if (ev(!mbfsp || !name || !handle))
+    if (ev(!mbfsp || !mc || !meta_addr || !handle))
         return merr(EINVAL);
-
-    mbfp = calloc(1, sizeof(*mbfp));
-    if (ev(!mbfp))
-        return merr(ENOMEM);
-
-    mbfp->maxsz = MBLOCK_FILE_SIZE_MAX;
-
-    snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
-    err = mblock_rgnmap_init(mbfp, rname);
-    if (ev(err))
-        goto err_exit;
-
-    mbfp->mbfsp = mbfsp;
-    strlcpy(mbfp->dname, name, sizeof(mbfp->dname));
-
-    mbfp->mcid = mcid;
-    mbfp->fileid = fileid;
 
     if (flags == 0 || !(flags & (O_RDWR | O_RDONLY | O_WRONLY)))
         flags |= O_RDWR;
 
     flags &= O_RDWR | O_RDONLY | O_WRONLY | O_CREAT;
-
-    if (flags & O_CREAT)
+    if (flags & O_CREAT) {
+        create = true;
         flags |= O_EXCL;
+    }
+
+    mcid = mclass_id(mc);
+    dirfd = mclass_dirfd(mc);
+    snprintf(name, sizeof(name), "%s-%d-%d", MBLOCK_DATA_FILE_PFX, mcid, fileid);
+
+    rc = faccessat(dirfd, name, F_OK, 0);
+    if (rc < 0 && errno == ENOENT && !create)
+        return merr(ENOENT);
+    if (rc == 0 && create)
+        return merr(EEXIST);
+
+    mbfp = calloc(1, sizeof(*mbfp));
+    if (ev(!mbfp))
+        return merr(ENOMEM);
+
+    mbfp->data_fd = -1;
+    mbfp->mbfsp = mbfsp;
+    mbfp->meta_addr = meta_addr;
+    mbfp->fileid = fileid;
+    mbfp->mcid = mcid;
+
+    mbfp->maxsz = MBLOCK_FILE_SIZE_MAX;
+    snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
+    err = mblock_rgnmap_init(mbfp, rname);
+    if (ev(err)) {
+        free(mbfp);
+        return err;
+    }
+
+    if (create) {
+        struct mblock_filehdr fh = {};
+
+        fh.fileid = fileid;
+        err = mblock_file_meta_format(mbfp, &fh);
+    } else {
+        err = mblock_file_meta_load(mbfp);
+    }
+    if (ev(err))
+        goto err_exit;
 
     fd = openat(dirfd, name, flags | O_DIRECT | O_SYNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
@@ -582,17 +579,16 @@ mblock_file_open(
         hse_elog(HSE_ERR "open/create data file failed, file name %s: @@e", err, name);
         goto err_exit;
     }
+    mbfp->data_fd = fd;
 
     /* ftruncate to the maximum size to make it a sparse file */
     rc = ftruncate(fd, mbfp->maxsz);
     if (rc < 0) {
         err = merr(errno);
-        close(fd);
         hse_elog(HSE_ERR "Truncating data file failed, file name %s: @@e", err, name);
         goto err_exit;
     }
 
-    mbfp->data_fd = fd;
     mbfp->io = &io_sync_ops;
 
     mutex_init(&mbfp->uniq_lock);
@@ -603,10 +599,10 @@ mblock_file_open(
     return 0;
 
 err_exit:
-    if (mbfp->rgnmap.rm_cache)
-        kmem_cache_destroy(mbfp->rgnmap.rm_cache);
+    mblock_file_close(mbfp);
 
-    free(mbfp);
+    if (create)
+        unlinkat(dirfd, name, 0);
 
     return err;
 }
@@ -626,9 +622,13 @@ mblock_file_close(struct mblock_file *mbfp)
         kmem_cache_free(rgnmap->rm_cache, rgn);
     }
 
-    kmem_cache_destroy(rgnmap->rm_cache);
+    if (rgnmap->rm_cache) {
+        kmem_cache_destroy(rgnmap->rm_cache);
+        rgnmap->rm_cache = NULL;
+    }
 
-    close(mbfp->data_fd);
+    if (mbfp->data_fd != -1)
+        close(mbfp->data_fd);
 
     free(mbfp);
 }
@@ -655,7 +655,7 @@ mblock_uniq_gen(struct mblock_file *mbfp, uint32_t *uniqout)
         fh.fileid = mbfp->fileid;
         fh.uniq = uniq;
 
-        err = meta_format_impl(mbfp, &fh);
+        err = mblock_file_meta_format(mbfp, &fh);
     }
 
     mutex_unlock(&mbfp->uniq_lock);

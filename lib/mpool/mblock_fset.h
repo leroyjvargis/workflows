@@ -36,7 +36,7 @@ struct mblock_metahdr {
  * @mbfsp (output): mblock fileset handle
  */
 merr_t
-mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **mbfsp);
+mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_fset **mbfsp);
 
 /**
  * mblock_fset_close() - close an mblock fileset
