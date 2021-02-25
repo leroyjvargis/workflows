@@ -35,9 +35,9 @@ struct mdc_file {
     off_t  roff;
     size_t size;
 
-    const struct io_ops *io;
-    char                *addr;
-    char                 name[32];
+    struct io_ops  io;
+    char          *addr;
+    char           name[32];
 };
 
 static void
@@ -174,7 +174,7 @@ mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity)
     if (ev(rc < 0)) {
         err = merr(errno);
         mdc_file_destroy(dirfd, logid);
-        hse_elog(HSE_ERR "Pre-allocating mdc file 1 failed, name %s: @@e", err, name);
+        hse_elog(HSE_ERR "%s: Pre-allocating mdc file 1 failed, name %s: @@e", err, __func__, name);
     }
 
     close(fd);
@@ -211,7 +211,7 @@ mdc_file_commit(int dirfd, uint64_t logid)
     fd = openat(dirfd, name, O_RDWR);
     if (fd < 0) {
         err = merr(errno);
-        hse_elog(HSE_ERR "Commit mdc file failed, name %s: @@e", err, name);
+        hse_elog(HSE_ERR "%s: Commit mdc file failed, name %s: @@e", err, __func__, name);
         return err;
     }
 
@@ -268,7 +268,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
     /* The MDC file will now be read sequentially. Pass this hint to VMM via madvise. */
     rc = madvise(addr, mfp->size, MADV_SEQUENTIAL);
     if (rc < 0)
-        hse_log(HSE_WARNING "madvise mdc file %s %p failed", mfp->name, addr);
+        hse_log(HSE_WARNING "%s: madvise mdc file %s %p failed", __func__, mfp->name, addr);
 
     /* Step 1: validate log header */
     err = loghdr_validate(mfp, gen);
@@ -353,7 +353,7 @@ mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_f
     mfp->mdc = mdc;
     mfp->logid = logid;
     mfp->fd = fd;
-    mfp->io = &io_sync_ops;
+    mfp->io = io_sync_ops;
     strlcpy(mfp->name, name, sizeof(mfp->name));
     mfp->roff = MDC_LOGHDR_LEN;
     mfp->raoff = MDC_RA_BYTES;
@@ -640,7 +640,6 @@ mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
 {
     struct mdc_rechdr_omf rhomf = {};
     struct iovec          iov[2];
-    const struct io_ops  *io;
 
     merr_t   err;
     uint32_t crc;
@@ -656,8 +655,7 @@ mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
     iov[1].iov_base = data;
     iov[1].iov_len = len;
 
-    io = mfp->io;
-    err = io->write(mfp->fd, mfp->woff, (const struct iovec *)&iov, 2, 0);
+    err = mfp->io.write(mfp->fd, mfp->woff, (const struct iovec *)&iov, 2, 0);
     if (ev(err))
         return err;
 

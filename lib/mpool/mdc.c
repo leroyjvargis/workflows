@@ -151,7 +151,13 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
 
     if (err || (!err && gen1 && gen1 == gen2)) {
         err = merr(EINVAL);
-        hse_log(HSE_ERR "MDC (%lu:%lu) bad pair gen (%lu, %lu)", logid1, logid2, gen1, gen2);
+        hse_log(
+            HSE_ERR "%s: MDC (%lu:%lu) bad pair gen (%lu, %lu)",
+            __func__,
+            logid1,
+            logid2,
+            gen1,
+            gen2);
     } else {
         /* active log is valid log with smallest gen */
         if (gen2 < gen1) {
@@ -166,13 +172,15 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
              */
             err = mdc_file_erase(mfp[0], gen2 + 1);
             if (err)
-                hse_elog(HSE_ERR "mdc file1 logid %lu erase failed: @@e", err, logid1);
+                hse_elog(
+                    HSE_ERR "%s: mdc file1 logid %lu erase failed: @@e", err, __func__, logid1);
         } else {
             mdc->mfpa = mfp[0];
 
             err = mdc_file_erase(mfp[1], gen1 + 1);
             if (err)
-                hse_elog(HSE_ERR "mdc file2 logid %lu erase failed: @@e", err, logid2);
+                hse_elog(
+                    HSE_ERR "%s: mdc file2 logid %lu erase failed: @@e", err, __func__, logid2);
         }
     }
 
@@ -207,13 +215,13 @@ mpool_mdc_close(struct mpool_mdc *mdc)
 
     err = mdc_file_close(mdc->mfp1);
     if (err) {
-        hse_elog(HSE_ERR "mdc close failed, mfp1 %p: @@e", err, mdc->mfp1);
+        hse_elog(HSE_ERR "%s: mdc close failed, mfp1 %p: @@e", err, __func__, mdc->mfp1);
         rval = err;
     }
 
     err = mdc_file_close(mdc->mfp2);
     if (err) {
-        hse_elog(HSE_ERR "mdc close failed, mfp2 %p: @@e", err, mdc->mfp2);
+        hse_elog(HSE_ERR "%s: mdc close failed, mfp2 %p: @@e", err, __func__, mdc->mfp2);
         rval = err;
     }
 
@@ -381,7 +389,7 @@ mpool_mdc_sync2(struct mpool_mdc *mdc)
 
     err = mdc_file_sync(mdc->mfpa);
     if (err)
-        hse_elog(HSE_ERR "mdc %p sync failed, mdc file %p: @@e", err, mdc, mdc->mfpa);
+        hse_elog(HSE_ERR "%s: mdc %p sync failed, mdc file %p: @@e", err, __func__, mdc, mdc->mfpa);
 
     mutex_unlock(&mdc->lock);
 
@@ -400,7 +408,8 @@ mpool_mdc_rewind(struct mpool_mdc *mdc)
 
     err = mdc_file_rewind(mdc->mfpa);
     if (err)
-        hse_elog(HSE_ERR "mdc %p rewind failed, mdc file %p: @@e", err, mdc, mdc->mfpa);
+        hse_elog(
+            HSE_ERR "%s: mdc %p rewind failed, mdc file %p: @@e", err, __func__, mdc, mdc->mfpa);
 
     mutex_unlock(&mdc->lock);
 
@@ -420,7 +429,13 @@ mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 
     err = mdc_file_read(mdc->mfpa, data, len, rdlen, verify);
     if (err && (merr_errno(err) != EOVERFLOW))
-        hse_elog(HSE_ERR "mdc %p read failed, mdc file %p len %lu: @@e", err, mdc, mdc->mfpa, len);
+        hse_elog(
+            HSE_ERR "%s: mdc %p read failed, mdc file %p len %lu: @@e",
+            err,
+            __func__,
+            mdc,
+            mdc->mfpa,
+            len);
 
     mutex_unlock(&mdc->lock);
 
@@ -440,8 +455,9 @@ mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
     err = mdc_file_append(mdc->mfpa, data, len, sync);
     if (err)
         hse_elog(
-            HSE_ERR "mdc %p append failed, mdc file %p, len %lu sync %d: @@e",
+            HSE_ERR "%s: mdc %p append failed, mdc file %p, len %lu sync %d: @@e",
             err,
+            __func__,
             mdc,
             mdc->mfpa,
             len,
@@ -464,7 +480,8 @@ mpool_mdc_usage(struct mpool_mdc *mdc, size_t *usage)
 
     err = mdc_file_usage(mdc->mfpa, usage);
     if (err)
-        hse_elog(HSE_ERR "mdc %p usage failed, mdc file %p: @@e", err, mdc, mdc->mfpa);
+        hse_elog(
+            HSE_ERR "%s: mdc %p usage failed, mdc file %p: @@e", err, __func__, mdc, mdc->mfpa);
 
     mutex_unlock(&mdc->lock);
 

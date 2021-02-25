@@ -63,7 +63,8 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
             if (dpath[0] != '\0') {
                 err = mclass_open(mp, i, dpath, fcnt, flags, &mp->mc[i]);
                 if (ev(err)) {
-                    hse_log(HSE_ERR "Malformed storage path for mclass %s", mc_key[i]);
+                    hse_log(
+                        HSE_ERR "%s: Malformed storage path for mclass %s", __func__, mc_key[i]);
                     goto errout;
                 }
             }
@@ -72,7 +73,7 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
 
     if (!mp->mc[MP_MED_CAPACITY]) {
         err = merr(EINVAL);
-        hse_log(HSE_ERR "Capacity mclass path is missing for mpool %s", name);
+        hse_log(HSE_ERR "%s: Capacity mclass path is missing for mpool %s", __func__, name);
         goto errout;
     }
 
@@ -108,7 +109,7 @@ mpool_close(struct mpool *mp)
         if (mp->mc[i]) {
             err = mclass_close(mp->mc[i]);
             if (err)
-                hse_log(HSE_ERR "Closing mclass id %d failed", i);
+                hse_log(HSE_ERR "%s: Closing mclass id %d failed", __func__, i);
         }
     }
 

@@ -190,6 +190,10 @@ hse_kvdb_drop(struct hse_kvdb *handle)
     if (ev(err))
         return merr_to_hse_err(err);
 
+    err = ikvdb_close(ikvdb);
+    if (ev(err))
+        return merr_to_hse_err(err);
+
     err = mpool_destroy(mp);
     if (ev(err))
         return merr_to_hse_err(err);

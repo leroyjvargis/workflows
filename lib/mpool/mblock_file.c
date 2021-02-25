@@ -74,8 +74,8 @@ struct mblock_file {
     struct mblock_rgnmap rgnmap;
 
     struct mblock_fset *mbfsp;
-    struct mblock_map *mmap;
-    const struct io_ops *io;
+    struct mblock_map  *mmap;
+    struct io_ops       io;
 
     size_t         maxsz;
     enum mclass_id mcid;
@@ -578,7 +578,8 @@ mblock_file_open(
     fd = openat(dirfd, name, flags | O_DIRECT | O_SYNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         err = merr(errno);
-        hse_elog(HSE_ERR "open/create data file failed, file name %s: @@e", err, name);
+        hse_elog(
+            HSE_ERR "%s: open/create data file failed, file name %s: @@e", err, __func__, name);
         goto err_exit;
     }
     mbfp->data_fd = fd;
@@ -587,11 +588,11 @@ mblock_file_open(
     rc = ftruncate(fd, mbfp->maxsz);
     if (rc < 0) {
         err = merr(errno);
-        hse_elog(HSE_ERR "Truncating data file failed, file name %s: @@e", err, name);
+        hse_elog(HSE_ERR "%s: Truncating data file failed, file name %s: @@e", err, __func__, name);
         goto err_exit;
     }
 
-    mbfp->io = &io_sync_ops;
+    mbfp->io = io_sync_ops;
 
     mutex_init(&mbfp->uniq_lock);
     mutex_init(&mbfp->meta_lock);
@@ -686,14 +687,23 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
         return merr(ENOSPC);
 
     err = mblock_uniq_gen(mbfp, &uniq);
-    if (ev(err))
+    if (ev(err)) {
+        mblock_rgn_free(&mbfp->rgnmap, block);
         return err;
+    }
+
+    if ((mbfp->fileid & (MBID_FILEID_MASK >> MBID_FILEID_SHIFT)) != mbfp->fileid ||
+        (mbfp->mcid & (MBID_MCID_MASK >> MBID_MCID_SHIFT)) != mbfp->mcid ||
+        ((block - 1) & MBID_BLOCK_MASK) != block - 1) {
+        mblock_rgn_free(&mbfp->rgnmap, block);
+        return merr(EBUG);
+    }
 
     mbid = 0;
-    mbid |= (((uint64_t)uniq << MBID_UNIQ_SHIFT) & MBID_UNIQ_MASK);
-    mbid |= (((uint64_t)mbfp->fileid << MBID_FILEID_SHIFT) & MBID_FILEID_MASK);
-    mbid |= (((uint64_t)mbfp->mcid << MBID_MCID_SHIFT) & MBID_MCID_MASK);
-    mbid |= ((block - 1) & MBID_BLOCK_MASK);
+    mbid |= ((uint64_t)uniq << MBID_UNIQ_SHIFT);
+    mbid |= ((uint64_t)mbfp->fileid << MBID_FILEID_SHIFT);
+    mbid |= ((uint64_t)mbfp->mcid << MBID_MCID_SHIFT);
+    mbid |= (block - 1);
 
     *mbidv = mbid;
 
@@ -830,7 +840,7 @@ mblock_file_read(
     roff = block_off(mbid);
     roff += off;
 
-    return mbfp->io->read(mbfp->data_fd, roff, (const struct iovec *)iov, iovc, 0);
+    return mbfp->io.read(mbfp->data_fd, roff, iov, iovc, 0);
 }
 
 merr_t
@@ -863,5 +873,5 @@ mblock_file_write(
     woff = block_off(mbid);
     woff += off;
 
-    return mbfp->io->write(mbfp->data_fd, woff, (const struct iovec *)iov, iovc, 0);
+    return mbfp->io.write(mbfp->data_fd, woff, iov, iovc, 0);
 }
