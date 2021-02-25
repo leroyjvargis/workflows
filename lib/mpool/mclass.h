@@ -12,16 +12,16 @@
 
 #include <mpool/mpool_internal.h>
 
-#define MCLASS_MAX              (1 << 2)    /* 2-bit for mclass-id */
+#define MCLASS_MAX (1 << 2) /* 2-bit for mclass-id */
 
 struct media_class;
 struct mblock_fset;
 struct mpool;
 
 enum mclass_id {
-    MCID_INVALID  = 0,
+    MCID_INVALID = 0,
     MCID_CAPACITY = 1,
-    MCID_STAGING  = 2,
+    MCID_STAGING = 2,
 };
 
 /**

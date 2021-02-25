@@ -23,7 +23,7 @@
 #include "mblock_fset.h"
 #include "mblock_file.h"
 
-#define MBLOCK_FSET_HDRLEN    (4096)
+#define MBLOCK_FSET_HDRLEN (4096)
 
 /**
  * struct mblock_fset - mblock fileset instance
@@ -35,16 +35,16 @@
  * @meta_name: fileset meta file name
  */
 struct mblock_fset {
-    struct media_class  *mc;
+    struct media_class *mc;
 
     atomic64_t           fidx;
     struct mblock_file **filev;
     int                  fcnt;
 
-    char                *maddr;
-    size_t               metasz;
-    int                  metafd;
-    char                 mname[32];
+    char  *maddr;
+    size_t metasz;
+    int    metafd;
+    char   mname[32];
 };
 
 static void
@@ -61,18 +61,13 @@ mblock_metahdr_init(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 static bool
 mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 {
-    return (mh->vers == MBLOCK_METAHDR_VERSION) &&
-        (mh->magic == MBLOCK_METAHDR_MAGIC) &&
-        (mh->mcid == mclass_id(mbfsp->mc)) &&
-        (mh->blkbits == MBID_BLOCK_BITS) &&
-        (mh->mcbits == MBID_MCID_BITS);
+    return (mh->vers == MBLOCK_METAHDR_VERSION) && (mh->magic == MBLOCK_METAHDR_MAGIC) &&
+           (mh->mcid == mclass_id(mbfsp->mc)) && (mh->blkbits == MBID_BLOCK_BITS) &&
+           (mh->mcbits == MBID_MCID_BITS);
 }
 
 static void
-mblock_fset_meta_get(
-    struct mblock_fset  *mbfsp,
-    int                  fidx,
-    char               **maddr)
+mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
 {
     off_t off;
 
@@ -83,7 +78,7 @@ mblock_fset_meta_get(
 static merr_t
 mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz)
 {
-    int prot;
+    int   prot;
     char *addr;
 
     prot = PROT_READ | PROT_WRITE;
@@ -109,10 +104,10 @@ mblock_fset_meta_format(struct mblock_fset *mbfsp)
 {
     struct mblock_metahdr mh = {};
 
-    char *addr;
-    int rc, len = MBLOCK_FSET_HDRLEN;
+    char  *addr;
+    int    rc, len = MBLOCK_FSET_HDRLEN;
     merr_t err = 0;
-    bool unmap = false;
+    bool   unmap = false;
 
     addr = mbfsp->maddr;
     if (!addr) {
@@ -142,10 +137,10 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp)
 {
     struct mblock_metahdr mh = {};
 
-    bool valid, unmap = false;
-    char *addr;
+    bool   valid, unmap = false;
+    char  *addr;
     merr_t err = 0;
-    int len = MBLOCK_FSET_HDRLEN;
+    int    len = MBLOCK_FSET_HDRLEN;
 
     addr = mbfsp->maddr;
     if (!addr) {
@@ -203,9 +198,9 @@ mblock_fset_free(struct mblock_fset *mbfsp)
 static merr_t
 mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 {
-    int fd, dirfd, rc;
+    int    fd, dirfd, rc;
     merr_t err;
-    bool create = false;
+    bool   create = false;
 
     mbfsp->metafd = -1;
 
@@ -278,7 +273,7 @@ mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_
         return merr(ENOMEM);
 
     mbfsp->mc = mc;
-    mbfsp->fcnt = fcnt ? : MBLOCK_FSET_FILES_DEFAULT;
+    mbfsp->fcnt = fcnt ?: MBLOCK_FSET_FILES_DEFAULT;
 
     err = mblock_fset_meta_open(mbfsp, flags);
     if (ev(err)) {
@@ -358,8 +353,8 @@ void
 mblock_fset_remove(struct mblock_fset *mbfsp)
 {
     const char *dpath;
-    char name[32];
-    int dirfd;
+    char        name[32];
+    int         dirfd;
 
     dirfd = mclass_dirfd(mbfsp->mc);
     dpath = mclass_dpath(mbfsp->mc);
@@ -378,8 +373,8 @@ mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
     struct mblock_file *mbfp;
 
     merr_t err;
-    int fidx;
-    int retries;
+    int    fidx;
+    int    retries;
 
     if (ev(!mbfsp || !mbidv))
         return merr(EINVAL);

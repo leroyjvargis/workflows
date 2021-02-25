@@ -26,13 +26,12 @@
 #include "omf.h"
 #include "mclass.h"
 
-#define MBLOCK_FILE_META_HDRLEN  (4096)
-#define MBLOCK_FILE_META_OIDLEN  (8)
+#define MBLOCK_FILE_META_HDRLEN (4096)
+#define MBLOCK_FILE_META_OIDLEN (8)
 
-#define MBLOCK_FILE_SIZE_MAX     ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
+#define MBLOCK_FILE_SIZE_MAX ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
 
-#define MBLOCK_FILE_UNIQ_DELTA   (1024)
-
+#define MBLOCK_FILE_UNIQ_DELTA (1024)
 
 /**
  * struct mblock_rgn -
@@ -41,20 +40,20 @@
  * @rgn_end:   last available key (not inclusive)
  */
 struct mblock_rgn {
-	struct rb_node      rgn_node;
-	uint32_t            rgn_start;
-	uint32_t            rgn_end;
+    struct rb_node rgn_node;
+    uint32_t       rgn_start;
+    uint32_t       rgn_end;
 };
 
 /**
  * struct mblock_rgnmap -
  */
 struct mblock_rgnmap {
-	struct mutex        rm_lock;
-	struct rb_root      rm_root;
-	struct rb_node     *rm_cur;
+    struct mutex    rm_lock;
+    struct rb_root  rm_root;
+    struct rb_node *rm_cur;
 
-	struct kmem_cache  *rm_cache __aligned(SMP_CACHE_BYTES);
+    struct kmem_cache *rm_cache __aligned(SMP_CACHE_BYTES);
 };
 
 /**
@@ -72,24 +71,24 @@ struct mblock_rgnmap {
  *
  */
 struct mblock_file {
-    struct mblock_rgnmap    rgnmap;
+    struct mblock_rgnmap rgnmap;
 
-    struct mblock_fset     *mbfsp;
-    struct mblock_map      *mmap;
-    const struct io_ops    *io;
+    struct mblock_fset *mbfsp;
+    struct mblock_map *mmap;
+    const struct io_ops *io;
 
-    size_t                  maxsz;
-    enum mclass_id          mcid;
-    int                     fileid;
-    int                     data_fd;
-
-    __aligned(SMP_CACHE_BYTES)
-    struct mutex            uniq_lock;
-    uint32_t                uniq;
+    size_t         maxsz;
+    enum mclass_id mcid;
+    int            fileid;
+    int            data_fd;
 
     __aligned(SMP_CACHE_BYTES)
-    struct mutex            meta_lock;
-    char                   *meta_addr;
+    struct mutex uniq_lock;
+    uint32_t uniq;
+
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex meta_lock;
+    char *meta_addr;
 };
 
 /**
@@ -97,9 +96,7 @@ struct mblock_file {
  */
 
 static merr_t
-mblock_rgnmap_init(
-    struct mblock_file *mbfp,
-    const char         *name)
+mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
 {
     struct kmem_cache    *rmcache = NULL;
     struct mblock_rgnmap *rgnmap;
@@ -138,10 +135,10 @@ mblock_rgnmap_init(
 static uint32_t
 mblock_rgn_alloc(struct mblock_rgnmap *rgnmap)
 {
-    struct mblock_rgn  *rgn;
-    struct rb_root     *root;
-    struct rb_node     *node;
-    uint32_t            key;
+    struct mblock_rgn *rgn;
+    struct rb_root    *root;
+    struct rb_node    *node;
+    uint32_t           key;
 
     rgn = NULL;
     key = 0;
@@ -178,12 +175,12 @@ mblock_rgn_alloc(struct mblock_rgnmap *rgnmap)
 static merr_t
 mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
 {
-    struct mblock_rgn  *this, *to_free = NULL;
-    struct rb_root     *root;
-    struct rb_node     *node, **new, *parent;
+    struct mblock_rgn *this, *to_free = NULL;
+    struct rb_root *root;
+    struct rb_node *node, **new, *parent;
 
     uint32_t start, end;
-    merr_t err = 0;
+    merr_t   err = 0;
 
     mutex_lock(&rgnmap->rm_lock);
     root = &rgnmap->rm_root;
@@ -270,10 +267,10 @@ exit:
 static merr_t
 mblock_rgn_free(struct mblock_rgnmap *rgnmap, uint32_t key)
 {
-    struct mblock_rgn  *this, *that;
-    struct rb_node    **new, *parent;
-    struct rb_node     *nxtprv;
-    struct rb_root     *root;
+    struct mblock_rgn *this, *that;
+    struct rb_node **new, *parent;
+    struct rb_node *nxtprv;
+    struct rb_root *root;
 
     merr_t err = 0;
 
@@ -353,8 +350,8 @@ mblock_rgn_free(struct mblock_rgnmap *rgnmap, uint32_t key)
 static merr_t
 mblock_rgn_find(struct mblock_rgnmap *rgnmap, uint32_t key)
 {
-    struct mblock_rgn  *this;
-    struct rb_node     *cur;
+    struct mblock_rgn *this;
+    struct rb_node *cur;
 
     assert(rgnmap && key > 0);
 
@@ -407,7 +404,7 @@ static merr_t
 mblock_file_meta_format(struct mblock_file *mbfp, struct mblock_filehdr *fh)
 {
     char *addr;
-    int rc;
+    int   rc;
 
     addr = mbfp->meta_addr;
 
@@ -424,8 +421,8 @@ static merr_t
 mblock_file_meta_load(struct mblock_file *mbfp)
 {
     struct mblock_filehdr fh = {};
-    char *addr, *bound;
-    size_t mblkc = 0;
+    char *                addr, *bound;
+    size_t                mblkc = 0;
 
     addr = mbfp->meta_addr;
 
@@ -441,8 +438,8 @@ mblock_file_meta_load(struct mblock_file *mbfp)
 
     while (addr < bound) {
         struct mblock_oid_omf *mbomf;
-        uint64_t mbid;
-        merr_t err;
+        uint64_t               mbid;
+        merr_t                 err;
 
         mbomf = (struct mblock_oid_omf *)addr;
 
@@ -458,8 +455,13 @@ mblock_file_meta_load(struct mblock_file *mbfp)
         addr += MBLOCK_FILE_META_OIDLEN;
     }
 
-    hse_log(HSE_NOTICE "%s: mclass %d, file-id %d found %lu valid mblocks, uniq %u.",
-            __func__, mbfp->mcid, mbfp->fileid, mblkc, mbfp->uniq);
+    hse_log(
+        HSE_NOTICE "%s: mclass %d, file-id %d found %lu valid mblocks, uniq %u.",
+        __func__,
+        mbfp->mcid,
+        mbfp->fileid,
+        mblkc,
+        mbfp->uniq);
 
     return 0;
 }
@@ -470,9 +472,9 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
     struct mblock_oid_omf *mbomf;
 
     uint32_t blockid;
-    char *addr;
-    int rc;
-    merr_t err = 0;
+    char    *addr;
+    int      rc;
+    merr_t   err = 0;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -514,13 +516,13 @@ mblock_file_open(
     char                *meta_addr,
     struct mblock_file **handle)
 {
-    struct mblock_file   *mbfp;
-    enum mclass_id mcid;
+    struct mblock_file *mbfp;
+    enum mclass_id      mcid;
 
-    int      fd, rc, dirfd;
-    merr_t   err = 0;
-    char     name[32], rname[32];
-    bool     create = false;
+    int    fd, rc, dirfd;
+    merr_t err = 0;
+    char   name[32], rname[32];
+    bool   create = false;
 
     if (ev(!mbfsp || !mc || !meta_addr || !handle))
         return merr(EINVAL);
@@ -618,7 +620,8 @@ mblock_file_close(struct mblock_file *mbfp)
 
     rgnmap = &mbfp->rgnmap;
 
-    rbtree_postorder_for_each_entry_safe(rgn, next, &rgnmap->rm_root, rgn_node) {
+    rbtree_postorder_for_each_entry_safe(rgn, next, &rgnmap->rm_root, rgn_node)
+    {
         kmem_cache_free(rgnmap->rm_cache, rgn);
     }
 
@@ -632,7 +635,6 @@ mblock_file_close(struct mblock_file *mbfp)
 
     free(mbfp);
 }
-
 
 merr_t
 mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid)
@@ -702,7 +704,7 @@ merr_t
 mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
     uint32_t block;
-    merr_t err;
+    merr_t   err;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -767,7 +769,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
     uint64_t block;
     merr_t   err;
-    int rc;
+    int      rc;
     bool delete = true;
 
     if (ev(!mbfp || !mbidv))
@@ -784,8 +786,11 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
         return err;
 
     /* Discard mblock */
-    rc = fallocate(mbfp->data_fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-                   block_off(*mbidv), MBLOCK_SIZE_BYTES);
+    rc = fallocate(
+        mbfp->data_fd,
+        FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+        block_off(*mbidv),
+        MBLOCK_SIZE_BYTES);
     ev(rc);
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
@@ -801,10 +806,10 @@ mblock_file_read(
     uint64_t            mbid,
     const struct iovec *iov,
     int                 iovc,
-	off_t               off)
+    off_t               off)
 {
     uint64_t roff;
-    bool verify = true;
+    bool     verify = true;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
@@ -834,10 +839,10 @@ mblock_file_write(
     uint64_t            mbid,
     const struct iovec *iov,
     int                 iovc,
-	off_t               off)
+    off_t               off)
 {
     uint64_t woff;
-    bool verify = true;
+    bool     verify = true;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);

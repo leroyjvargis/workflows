@@ -28,12 +28,11 @@
  * @dpath: mclass directory path
  */
 struct media_class {
-    DIR                    *dirp;
-    struct mblock_fset     *mbfsp;
-    enum mclass_id          mcid;
-    char                    dpath[PATH_MAX];
+    DIR                *dirp;
+    struct mblock_fset *mbfsp;
+    enum mclass_id      mcid;
+    char                dpath[PATH_MAX];
 };
-
 
 static merr_t
 mclass_lockfile_acq(int dirfd)
@@ -68,8 +67,8 @@ mclass_open(
 {
     struct media_class *mc;
 
-    DIR    *dirp;
-    merr_t  err;
+    DIR   *dirp;
+    merr_t err;
 
     if (ev(!mp || !dpath || !handle || mclass >= MP_MED_COUNT))
         return merr(EINVAL);
@@ -157,9 +156,9 @@ mclass_destroy(struct media_class *mc)
 merr_t
 mclass_params_set(struct media_class *mc, const char *key, const char *val, size_t len)
 {
-    int fd, dirfd;
+    int     fd, dirfd;
     ssize_t cc;
-    merr_t err=0;
+    merr_t  err = 0;
 
     dirfd = mclass_dirfd(mc);
 
@@ -182,9 +181,9 @@ errout:
 merr_t
 mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len)
 {
-    int fd, dirfd;
+    int     fd, dirfd;
     ssize_t cc;
-    merr_t err=0;
+    merr_t  err = 0;
 
     dirfd = mclass_dirfd(mc);
 
@@ -217,7 +216,7 @@ merr_t
 mclass_params_remove(struct media_class *mc)
 {
     const char *dpath;
-    int rc;
+    int         rc;
 
     if (ev(!mc))
         return merr(EINVAL);

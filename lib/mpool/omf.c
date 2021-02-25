@@ -43,7 +43,7 @@ merr_t
 omf_mdc_loghdr_unpack_letoh(struct mdc_loghdr *lh, const char *inbuf)
 {
     struct mdc_loghdr_omf *lhomf;
-    uint32_t crc;
+    uint32_t               crc;
 
     lhomf = (struct mdc_loghdr_omf *)inbuf;
 

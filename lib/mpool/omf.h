@@ -33,7 +33,6 @@ OMF_SETGET(struct mdc_loghdr_omf, lh_rsvd, 32);
 OMF_SETGET(struct mdc_loghdr_omf, lh_gen, 64);
 OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
 
-
 struct mdc_rechdr_omf {
     __le32 rh_crc;
     __le64 rh_size;
@@ -79,7 +78,6 @@ OMF_SETGET(struct mblock_metahdr_omf, mh_fcnt, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_blkbits, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_mcbits, 8);
 
-
 struct mblock_filehdr_omf {
     __le32 fh_uniq;
     u8     fh_fileid;
@@ -92,7 +90,6 @@ OMF_SETGET(struct mblock_filehdr_omf, fh_uniq, 32);
 OMF_SETGET(struct mblock_filehdr_omf, fh_fileid, 8);
 OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd1, 8);
 OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
-
 
 struct mblock_oid_omf {
     __le64 mblk_id;

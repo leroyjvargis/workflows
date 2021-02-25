@@ -17,7 +17,7 @@
 #include "mpool.h"
 #include "mdc.h"
 
-#define UUID_STRLEN    36
+#define UUID_STRLEN 36
 
 /**
  * struct mpool - mpool handle
@@ -28,20 +28,15 @@
 struct mpool {
     struct media_class *mc[MP_MED_COUNT];
 
-    char                name[64];
+    char name[64];
 };
 
-
 merr_t
-mpool_open(
-    const char                  *name,
-    const struct hse_params     *params,
-    uint32_t                     flags,
-    struct mpool               **handle)
+mpool_open(const char *name, const struct hse_params *params, uint32_t flags, struct mpool **handle)
 {
     struct mpool *mp;
 
-    const char *mc_key[MP_MED_COUNT] = {"kvdb.capdir", "kvdb.stgdir"};
+    const char *mc_key[MP_MED_COUNT] = { "kvdb.capdir", "kvdb.stgdir" };
     char        fbuf[4];
     merr_t      err;
     int         i, fcnt = 0;
@@ -104,7 +99,7 @@ merr_t
 mpool_close(struct mpool *mp)
 {
     merr_t err = 0;
-    int i;
+    int    i;
 
     if (ev(!mp))
         return merr(EINVAL);
@@ -151,14 +146,14 @@ mpool_destroy(struct mpool *mp)
 merr_t
 mpool_params_get2(struct mpool *mp, struct mpool_params *params)
 {
-    char ubuf[UUID_STRLEN + 1];
+    char   ubuf[UUID_STRLEN + 1];
     merr_t err;
 
     memset(params, 0, sizeof(*params));
 
     /* Fill utype if present. */
-    err = mclass_params_get(mp->mc[MP_MED_CAPACITY], "params-utype",
-                            (char *)ubuf, sizeof(ubuf) - 1);
+    err =
+        mclass_params_get(mp->mc[MP_MED_CAPACITY], "params-utype", (char *)ubuf, sizeof(ubuf) - 1);
     if (!err) {
         ubuf[UUID_STRLEN] = '\0';
         uuid_parse((const char *)ubuf, params->mp_utype);
@@ -175,8 +170,8 @@ mpool_params_set2(struct mpool *mp, struct mpool_params *params)
 
         uuid_unparse(params->mp_utype, ubuf);
 
-        return mclass_params_set(mp->mc[MP_MED_CAPACITY], "params-utype",
-                                 (const char *)ubuf, sizeof(ubuf) - 1);
+        return mclass_params_set(
+            mp->mc[MP_MED_CAPACITY], "params-utype", (const char *)ubuf, sizeof(ubuf) - 1);
     }
 
     return 0;

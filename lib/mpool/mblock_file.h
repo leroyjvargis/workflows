@@ -10,15 +10,15 @@
 
 #include "mclass.h"
 
-#define MBID_FILEID_BITS         (8)
-#define MBID_MCID_BITS           (2)
-#define MBID_BLOCK_BITS          (16)
+#define MBID_FILEID_BITS (8)
+#define MBID_MCID_BITS   (2)
+#define MBID_BLOCK_BITS  (16)
 
-#define MBLOCK_SIZE_MB           (32)
-#define MBLOCK_SIZE_BYTES        (MBLOCK_SIZE_MB << 20)
-#define MBLOCK_SIZE_SHIFT        (25)
+#define MBLOCK_SIZE_MB    (32)
+#define MBLOCK_SIZE_BYTES (MBLOCK_SIZE_MB << 20)
+#define MBLOCK_SIZE_SHIFT (25)
 
-#define MBLOCK_DATA_FILE_PFX     "mblock-data"
+#define MBLOCK_DATA_FILE_PFX "mblock-data"
 
 /**
  * Mblock ID in-memory layout
@@ -37,11 +37,11 @@
 #define MBID_MCID_SHIFT   (22)
 #define MBID_RSVD_SHIFT   (16)
 
-#define MBID_UNIQ_MASK    (0xffffffff00000000)
-#define MBID_FILEID_MASK  (0x00000000ff000000)
-#define MBID_MCID_MASK    (0x0000000000c00000)
-#define MBID_RSVD_MASK    (0x00000000003f0000)
-#define MBID_BLOCK_MASK   (0x000000000000ffff)
+#define MBID_UNIQ_MASK   (0xffffffff00000000)
+#define MBID_FILEID_MASK (0x00000000ff000000)
+#define MBID_MCID_MASK   (0x0000000000c00000)
+#define MBID_RSVD_MASK   (0x00000000003f0000)
+#define MBID_BLOCK_MASK  (0x000000000000ffff)
 
 struct mblock_mmap;
 struct mblock_rgnmap;
@@ -50,10 +50,10 @@ struct mblock_file;
 struct io_ops;
 
 struct mblock_filehdr {
-    uint32_t   uniq;
-    uint8_t    fileid;
-    uint8_t    rsvd1;
-    uint16_t   rsvd2;
+    uint32_t uniq;
+    uint8_t  fileid;
+    uint8_t  rsvd1;
+    uint16_t rsvd2;
 };
 
 static inline int
@@ -184,4 +184,3 @@ size_t
 mblock_file_meta_len(void);
 
 #endif /* MPOOL_MBLOCK_FILE_H */
-

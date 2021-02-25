@@ -22,10 +22,10 @@ struct mpool;
 
 merr_t
 mpool_mblock_alloc2(
-    struct mpool           *mp,
-    enum mp_media_classp	mclass,
-    uint64_t               *mbid,
-    struct mblock_props    *props)
+    struct mpool        *mp,
+    enum mp_media_classp mclass,
+    uint64_t            *mbid,
+    struct mblock_props *props)
 {
     struct media_class *mc;
 
@@ -51,7 +51,7 @@ mpool_mblock_alloc2(
 merr_t
 mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 {
-    struct media_class *mc;
+    struct media_class  *mc;
     enum mp_media_classp mclass;
 
     if (ev(!mp))
@@ -66,7 +66,7 @@ mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 merr_t
 mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 {
-    struct media_class *mc;
+    struct media_class  *mc;
     enum mp_media_classp mclass;
 
     if (ev(!mp))
@@ -81,7 +81,7 @@ mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 merr_t
 mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 {
-    struct media_class *mc;
+    struct media_class  *mc;
     enum mp_media_classp mclass;
 
     if (ev(!mp))
@@ -96,7 +96,7 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 merr_t
 mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
-    struct media_class *mc;
+    struct media_class  *mc;
     enum mp_media_classp mclass;
 
     merr_t err;
@@ -119,16 +119,10 @@ mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
     return err;
 }
 
-
 merr_t
-mpool_mblock_write2(
-    struct mpool       *mp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc,
-    off_t               off)
+mpool_mblock_write2(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
 {
-    struct media_class *mc;
+    struct media_class  *mc;
     enum mp_media_classp mclass;
 
     if (ev(!mp || !iov))
@@ -141,14 +135,9 @@ mpool_mblock_write2(
 }
 
 merr_t
-mpool_mblock_read(
-    struct mpool       *mp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc,
-    off_t               off)
+mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
 {
-    struct media_class *mc;
+    struct media_class  *mc;
     enum mp_media_classp mclass;
 
     if (ev(!mp || !iov))

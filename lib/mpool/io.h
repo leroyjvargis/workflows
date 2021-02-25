@@ -16,4 +16,3 @@ struct io_ops {
 extern const struct io_ops io_sync_ops;
 
 #endif /* MPOOL_IO_H */
-

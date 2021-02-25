@@ -17,4 +17,3 @@ struct media_class *
 mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass);
 
 #endif /* MPOOL_H */
-
