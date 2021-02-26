@@ -51,7 +51,6 @@ struct mblock_rgn {
 struct mblock_rgnmap {
     struct mutex    rm_lock;
     struct rb_root  rm_root;
-    struct rb_node *rm_cur;
 
     struct kmem_cache *rm_cache __aligned(SMP_CACHE_BYTES);
 };
@@ -145,24 +144,17 @@ mblock_rgn_alloc(struct mblock_rgnmap *rgnmap)
 
     mutex_lock(&rgnmap->rm_lock);
     root = &rgnmap->rm_root;
-
-    node = rgnmap->rm_cur;
-    if (!node) {
-        node = rb_first(root);
-        rgnmap->rm_cur = node;
-    }
+    node = rb_first(root);
 
     if (node) {
         rgn = rb_entry(node, struct mblock_rgn, rgn_node);
 
         key = rgn->rgn_start++;
 
-        if (rgn->rgn_start < rgn->rgn_end) {
+        if (rgn->rgn_start < rgn->rgn_end)
             rgn = NULL;
-        } else {
-            rgnmap->rm_cur = rb_next(node);
+        else
             rb_erase(&rgn->rgn_node, root);
-        }
     }
     mutex_unlock(&rgnmap->rm_lock);
 
@@ -316,13 +308,9 @@ mblock_rgn_free(struct mblock_rgnmap *rgnmap, uint32_t key)
 
         if (this->rgn_start == that->rgn_end) {
             this->rgn_start = that->rgn_start;
-            if (&that->rgn_node == rgnmap->rm_cur)
-                rgnmap->rm_cur = &this->rgn_node;
             rb_erase(&that->rgn_node, root);
         } else if (this->rgn_end == that->rgn_start) {
             this->rgn_end = that->rgn_end;
-            if (&that->rgn_node == rgnmap->rm_cur)
-                rgnmap->rm_cur = rb_next(&that->rgn_node);
             rb_erase(&that->rgn_node, root);
         } else {
             that = NULL;
