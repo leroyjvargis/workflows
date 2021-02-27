@@ -85,4 +85,10 @@ mblock_fset_read(
 merr_t
 mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
 
+merr_t
+mblock_fset_map_getbase(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    char              **addr_out);
+
 #endif /* MPOOL_MBLOCK_FSET_H */
