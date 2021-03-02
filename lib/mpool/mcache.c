@@ -22,8 +22,10 @@
 struct mpool;
 
 struct mpool_mcache_map {
+    struct mpool *mp;
     size_t mbidc;
     void **addrv;
+    uint64_t *mbidv;
 };
 
 merr_t
@@ -46,13 +48,14 @@ mpool_mcache_mmap(
 
     *mapp = NULL;
 
-    sz = sizeof(*map) + mbidc * sizeof(*map->addrv);
+    sz = sizeof(*map) + mbidc * (sizeof(*map->addrv) + sizeof(*map->mbidv));
     map = calloc(1, sz);
     if (!map)
         return merr(ENOMEM);
 
     map->mbidc = mbidc;
     map->addrv = (void *)(map + 1);
+    map->mbidv = (void *)(map->addrv + mbidc);
 
     for (i = 0; i < mbidc; i++) {
         enum mp_media_classp mclass;
@@ -66,7 +69,9 @@ mpool_mcache_mmap(
             goto errout;
 
         map->addrv[i] = addr;
+        map->mbidv[i] = mbidv[i];
     }
+    map->mp = mp;
 
     *mapp = map;
 
@@ -81,7 +86,29 @@ errout:
 merr_t
 mpool_mcache_munmap(struct mpool_mcache_map *map)
 {
+    struct media_class *mc;
+    int i;
+
+    if (!map)
+        return merr(EINVAL);
+
+    for (i = 0; i < map->mbidc; i++) {
+        enum mp_media_classp mclass;
+        uint64_t             mbid;
+        merr_t               err;
+
+        mbid = map->mbidv[i];
+
+        mclass = mcid_to_mclass(mclassid(mbid));
+        mc = mpool_mclass_handle(map->mp, mclass);
+
+        err = mblock_fset_unmap(mclass_fset(mc), mbid);
+        if (err)
+            return err;
+    }
+
     free(map);
+
     return 0;
 }
 

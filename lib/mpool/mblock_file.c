@@ -60,6 +60,12 @@ struct mblock_rgnmap {
     struct kmem_cache *rm_cache __aligned(SMP_CACHE_BYTES);
 };
 
+
+struct mblock_mmap {
+    char   *addr;
+    int64_t ref __aligned(SMP_CACHE_BYTES);
+};
+
 /**
  * struct mblock_file - mblock file handle (one per file)
  *
@@ -78,7 +84,6 @@ struct mblock_file {
     struct mblock_rgnmap rgnmap;
 
     struct mblock_fset *mbfsp;
-    struct mblock_map  *mmap;
     struct io_ops       io;
 
     size_t         maxsz;
@@ -96,13 +101,13 @@ struct mblock_file {
 
     __aligned(SMP_CACHE_BYTES)
     struct mutex mmap_lock;
-    char **mmapv;
-    int    mmapc;
+    int mmapc;
+    struct mblock_mmap *mmapv;
 };
 
 /* Forward declarations */
 static void
-mblock_file_unmap(struct mblock_file *mbfp);
+mblock_file_unmapall(struct mblock_file *mbfp);
 
 /**
  * Region map interfaces.
@@ -642,7 +647,7 @@ mblock_file_close(struct mblock_file *mbfp)
         rgnmap->rm_cache = NULL;
     }
 
-    mblock_file_unmap(mbfp);
+    mblock_file_unmapall(mbfp);
 
     if (mbfp->fd != -1)
         close(mbfp->fd);
@@ -913,6 +918,7 @@ mblock_file_map_getbase(
     uint64_t            mbid,
     char              **addr_out)
 {
+    struct mblock_mmap *map;
     char *addr;
     int   cidx;
     off_t soff, off;
@@ -921,11 +927,13 @@ mblock_file_map_getbase(
         return merr(EINVAL);
 
     cidx = chunk_idx(mbid);
+    map = &mbfp->mmapv[cidx];
+
     soff = chunk_start_off(mbid);
     off = chunk_off(mbid);
 
     mutex_lock(&mbfp->mmap_lock);
-    addr = mbfp->mmapv[cidx];
+    addr = map->addr;
     if (!addr) {
         /* Setup map */
         addr = mmap(NULL, MBLOCK_MMAP_CHUNK_SIZE, PROT_READ, MAP_SHARED, mbfp->fd, soff);
@@ -933,7 +941,13 @@ mblock_file_map_getbase(
             mutex_unlock(&mbfp->mmap_lock);
             return merr(errno);
         }
-        mbfp->mmapv[cidx] = addr;
+
+        map->addr = addr;
+        assert(map->ref == 0);
+        map->ref = 1;
+    } else {
+        assert(map->ref >= 1);
+        ++map->ref;
     }
     mutex_unlock(&mbfp->mmap_lock);
 
@@ -942,9 +956,43 @@ mblock_file_map_getbase(
     return 0;
 }
 
-static void
-mblock_file_unmap(struct mblock_file *mbfp)
+merr_t
+mblock_file_unmap(
+    struct mblock_file *mbfp,
+    uint64_t            mbid)
 {
+    struct mblock_mmap *map;
+    char  *addr;
+    int    cidx;
+    merr_t err = 0;
+
+    if (!mbfp)
+        return merr(EINVAL);
+
+    cidx = chunk_idx(mbid);
+    map = &mbfp->mmapv[cidx];
+
+    mutex_lock(&mbfp->mmap_lock);
+    addr = map->addr;
+    assert(addr);
+    if (--map->ref == 0) {
+        int rc;
+
+        rc = munmap(addr, MBLOCK_MMAP_CHUNK_SIZE);
+        if (rc)
+            err = merr(errno);
+        else
+            map->addr = NULL;
+    }
+    mutex_unlock(&mbfp->mmap_lock);
+
+    return err;
+}
+
+static void
+mblock_file_unmapall(struct mblock_file *mbfp)
+{
+    struct mblock_mmap *map;
     int i;
 
     if (!mbfp)
@@ -954,10 +1002,20 @@ mblock_file_unmap(struct mblock_file *mbfp)
     for (i = 0; i < mbfp->mmapc; i++) {
         char *addr;
 
-        addr = mbfp->mmapv[i];
+        map = &mbfp->mmapv[i];
+
+        addr = map->addr;
         if (addr) {
-            munmap(addr, MBLOCK_MMAP_CHUNK_SIZE);
-            mbfp->mmapv[i] = NULL;
+            int rc;
+
+            hse_log(HSE_WARNING "%s: Leaked map mcid %d fileid %d chunk-id %d ref %lu",
+                    __func__, mbfp->mcid, mbfp->fileid, i, map->ref);
+
+            rc = munmap(addr, MBLOCK_MMAP_CHUNK_SIZE);
+            ev(rc);
+
+            map->addr = NULL;
+            map->ref = 0;
         }
     }
     mutex_unlock(&mbfp->mmap_lock);

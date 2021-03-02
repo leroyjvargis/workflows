@@ -189,4 +189,9 @@ mblock_file_map_getbase(
     uint64_t            mbid,
     char              **addr_out);
 
+merr_t
+mblock_file_unmap(
+    struct mblock_file *mbfp,
+    uint64_t            mbid);
+
 #endif /* MPOOL_MBLOCK_FILE_H */

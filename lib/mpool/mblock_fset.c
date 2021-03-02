@@ -513,3 +513,18 @@ mblock_fset_map_getbase(
 
     return mblock_file_map_getbase(mbfp, mbid, addr_out);
 }
+
+merr_t
+mblock_fset_unmap(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid)
+{
+    struct mblock_file *mbfp;
+
+    if (!mbfsp || file_id(mbid) > mbfsp->fcnt)
+        return merr(EINVAL);
+
+    mbfp = mbfsp->filev[file_index(mbid)];
+
+    return mblock_file_unmap(mbfp, mbid);
+}

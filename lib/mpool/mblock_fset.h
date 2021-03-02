@@ -91,4 +91,9 @@ mblock_fset_map_getbase(
     uint64_t            mbid,
     char              **addr_out);
 
+merr_t
+mblock_fset_unmap(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid);
+
 #endif /* MPOOL_MBLOCK_FSET_H */
