@@ -142,6 +142,7 @@
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
+#include <mpool/mpool2.h>
 
 #include <xoroshiro/xoroshiro.h>
 
@@ -299,6 +300,7 @@ bool           latency = false;
 const char *   config;
 bool           sync_enabled = false;
 ulong          sync_timeout_ms = 0;
+int            mclass = MP_MED_CAPACITY;
 
 struct hse_params *params;
 
@@ -1955,7 +1957,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.op = OP_MB_ALLOC;
     inst->stats.alloc++;
 
-    err = merr_to_hse_err(mpool_mblock_alloc(impl->ds, MP_MED_CAPACITY, false, &nmbid, &props));
+    err = merr_to_hse_err(mpool_mblock_alloc2(impl->ds, mclass, &nmbid, &props));
     if (err)
         return err;
 
@@ -1982,7 +1984,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.put++;
     inst->stats.putbytes += secsz;
 
-    err = merr_to_hse_err(mpool_mblock_write(impl->ds, nmbid, iov, 1));
+    err = merr_to_hse_err(mpool_mblock_write2(impl->ds, nmbid, iov, 1, 0));
     if (err) {
         eprint("%s: mbwrite %lx failed: %lx\n", __func__, r->mbid, err);
         return err;
@@ -2444,7 +2446,7 @@ km_open_ds(struct km_impl *impl)
         return EINVAL;
     }
 
-    err = merr_to_hse_err(mpool_open(impl->mpname, O_RDWR, &ds, NULL));
+    err = merr_to_hse_err(mpool_open(impl->mpname, params, O_RDWR, &ds));
     if (err)
         return err;
 
@@ -4038,6 +4040,9 @@ prop_decode(const char *list, const char *sep, const char *valid)
             wcmin_given = true;
         } else if (0 == strcmp(name, "wcmajprob")) {
             wcmajprob = strtod(value, &end);
+        } else if (0 == strcmp(name, "mclass")) {
+            mclass = strtoul(value, &end, 0);
+            mclass = mclass == 1 ? MP_MED_STAGING : MP_MED_CAPACITY;
         } else {
             eprint("%s property '%s' ignored\n", valid ? "unhandled" : "invalid", name);
             continue;
@@ -4219,6 +4224,7 @@ usage(struct km_impl *impl)
     printf("  wcmajprob   %10.3f  probability to use majority write concern\n", wcmajprob);
     printf("  sync        %10d  sync enabled\n", sync_enabled);
     printf("  sync_ms     %10lu  milliseconds between syncs\n", sync_timeout_ms);
+    printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
     printf("\n");
 
     printf("KVDB PARAMETERS:\n");

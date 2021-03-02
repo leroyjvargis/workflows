@@ -243,15 +243,6 @@ else
     )
     xxhash_dep = xxhash.get_variable('xxhash_dep')
 endif
-if get_option('mpool-lib-dir') == ''
-    mpool_dep = cc.find_library('mpool', required: true)
-else
-    mpool_dep = cc.find_library(
-        'mpool',
-        required: true,
-        dirs: get_option('mpool-lib-dir'),
-    )
-endif
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',
