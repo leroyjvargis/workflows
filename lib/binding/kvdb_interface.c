@@ -270,7 +270,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
         char   sock[PATH_MAX];
         size_t n;
 
-        n = snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool_name, mpool_name);
+        n = snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), mpool_name);
 
         if (n >= sizeof(sock)) {
             hse_log(

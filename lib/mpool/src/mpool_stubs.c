@@ -22,18 +22,6 @@ mpool_mclass_add(
 }
 
 merr_t
-mpool_scan(int *propcp, struct mpool_params **propvp)
-{
-    return 0;
-}
-
-merr_t
-mpool_list(int *propcp, struct mpool_params **propvp)
-{
-    return 0;
-}
-
-merr_t
 mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
 {
     if (mclass != MP_MED_CAPACITY)
@@ -71,40 +59,7 @@ mpool_params_set(struct mpool *mp, struct mpool_params *params)
 }
 
 merr_t
-mpool_mblock_alloc(
-    struct mpool        *mp,
-    enum mp_media_classp mclassp,
-    bool                 spare,
-    uint64_t            *mbid,
-    struct mblock_props *props)
-{
-    return 0;
-}
-
-merr_t
-mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
-{
-    return 0;
-}
-
-merr_t
 mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
-{
-    return 0;
-}
-
-merr_t
-mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp)
-{
-    return 0;
-}
-
-merr_t
-mpool_mcache_mincore(
-    struct mpool_mcache_map *map,
-    const struct mpool      *mp,
-    size_t                  *rssp,
-    size_t                  *vssp)
 {
     return 0;
 }

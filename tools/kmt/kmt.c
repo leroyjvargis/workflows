@@ -1957,7 +1957,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.op = OP_MB_ALLOC;
     inst->stats.alloc++;
 
-    err = merr_to_hse_err(mpool_mblock_alloc2(impl->ds, mclass, &nmbid, &props));
+    err = merr_to_hse_err(mpool_mblock_alloc(impl->ds, mclass, &nmbid, &props));
     if (err)
         return err;
 

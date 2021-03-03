@@ -19,6 +19,7 @@
 #define MBLOCK_SIZE_SHIFT (25)
 
 #define MBLOCK_DATA_FILE_PFX "mblock-data"
+#define MBLOCK_OPT_WRITE_SZ  (128 << 10)
 
 /**
  * Mblock ID in-memory layout

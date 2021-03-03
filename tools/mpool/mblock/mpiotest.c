@@ -493,7 +493,7 @@ void *test_start(void *arg)
 		wander = (random() % test->t_wandermax) & PAGE_MASK;
 		wobble = (random() % test->t_wobblemax) & PAGE_MASK;
 
-		err = mpool_mblock_alloc2(mp, MP_MED_CAPACITY, &objid, &props);
+		err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &objid, &props);
 		if (err) {
 			if (merr_errno(err) == ENOSPC)
 				break;

@@ -579,8 +579,7 @@ c0sk_ingest_worker(struct work_struct *work)
                     &bldr,
                     cn,
                     cn_get_ingest_perfc(c0sk->c0sk_cnv[skidx]),
-                    get_time_ns(),
-                    KVSET_BUILDER_FLAGS_INGEST);
+                    get_time_ns());
                 if (ev(err))
                     goto health_err;
 

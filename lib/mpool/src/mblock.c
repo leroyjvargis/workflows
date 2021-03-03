@@ -21,7 +21,7 @@
 struct mpool;
 
 merr_t
-mpool_mblock_alloc2(
+mpool_mblock_alloc(
     struct mpool        *mp,
     enum mp_media_classp mclass,
     uint64_t            *mbid,
@@ -94,6 +94,20 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 }
 
 merr_t
+mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
+{
+    if (!mp || !props)
+        return merr(EINVAL);
+
+    props->mpr_objid = mbid;
+    props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
+    props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
+    props->mpr_mclassp = mcid_to_mclass(mclassid(mbid));
+
+    return 0;
+}
+
+merr_t
 mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     struct media_class  *mc;
@@ -109,12 +123,8 @@ mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 
     err = mblock_fset_find(mclass_fset(mc), &mbid, 1);
 
-    if (!err && props) {
-        props->mpr_objid = mbid;
-        props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
-        props->mpr_optimal_wrsz = 128 << 10;
-        props->mpr_mclassp = mclass;
-    }
+    if (!err && props)
+        err = mpool_mblock_props_get(mp, mbid, props);
 
     return err;
 }
