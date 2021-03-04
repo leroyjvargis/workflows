@@ -649,8 +649,10 @@ mblock_file_close(struct mblock_file *mbfp)
 
     mblock_file_unmapall(mbfp);
 
-    if (mbfp->fd != -1)
+    if (mbfp->fd != -1) {
+        fsync(mbfp->fd);
         close(mbfp->fd);
+    }
 
     free(mbfp);
 }
@@ -828,6 +830,18 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     return 0;
 }
 
+static size_t
+iov_len_get(const struct iovec *iov, int iovc)
+{
+    size_t len = 0;
+    int    i;
+
+    for (i = 0; i < iovc; i++)
+        len += iov[i].iov_len;
+
+    return len;
+}
+
 merr_t
 mblock_file_read(
     struct mblock_file *mbfp,
@@ -836,16 +850,15 @@ mblock_file_read(
     int                 iovc,
     off_t               off)
 {
-    uint64_t roff;
-    bool     verify = true;
+    off_t  roff, eoff;
+    size_t len = 0;
+    bool   verify = true;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
 
     if (iovc == 0)
         return 0;
-
-    /* TODO: Add offset and len validation */
 
     if (verify) {
         merr_t err;
@@ -856,7 +869,12 @@ mblock_file_read(
     }
 
     roff = block_off(mbid);
+    eoff = roff + MBLOCK_SIZE_BYTES - 1;
     roff += off;
+
+    len = iov_len_get(iov, iovc);
+    if (roff + len - 1 > eoff)
+        return merr(EINVAL);
 
     return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0);
 }
@@ -869,13 +887,12 @@ mblock_file_write(
     int                 iovc,
     off_t               off)
 {
-    uint64_t woff;
-    bool     verify = true;
+    size_t len;
+    off_t  woff, eoff;
+    bool   verify = true;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
-
-    /* TODO: Add offset and len validation */
 
     if (iovc == 0)
         return 0;
@@ -889,7 +906,12 @@ mblock_file_write(
     }
 
     woff = block_off(mbid);
+    eoff = woff + MBLOCK_SIZE_BYTES - 1;
     woff += off;
+
+    len = iov_len_get(iov, iovc);
+    if (woff + len - 1 > eoff)
+        return merr(EINVAL);
 
     return mbfp->io.write(mbfp->fd, woff, iov, iovc, 0);
 }
@@ -941,6 +963,8 @@ mblock_file_map_getbase(
             mutex_unlock(&mbfp->mmap_lock);
             return merr(errno);
         }
+
+        madvise(addr, MBLOCK_MMAP_CHUNK_SIZE, MADV_RANDOM);
 
         map->addr = addr;
         assert(map->ref == 0);

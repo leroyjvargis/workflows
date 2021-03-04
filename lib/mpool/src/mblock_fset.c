@@ -176,6 +176,7 @@ mblock_fset_meta_close(struct mblock_fset *mbfsp)
     }
 
     if (mbfsp->metafd != -1) {
+        fsync(mbfsp->metafd);
         close(mbfsp->metafd);
         mbfsp->metafd = -1;
     }
