@@ -397,6 +397,12 @@ block_off(uint64_t mbid)
     return ((uint64_t)block_id(mbid)) << MBLOCK_SIZE_SHIFT;
 }
 
+static uint32_t
+uniquifier(uint64_t mbid)
+{
+    return (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT;
+}
+
 size_t
 mblock_file_meta_len(void)
 {
@@ -432,13 +438,15 @@ mblock_file_meta_load(struct mblock_file *mbfp)
     size_t                mblkc = 0;
 
     addr = mbfp->meta_addr;
+    mbfp->uniq = 0;
 
     /* Validate per-file header */
     omf_mblock_filehdr_unpack_letoh(&fh, addr);
     if (fh.fileid != mbfp->fileid)
         return merr(EBADMSG);
 
-    mbfp->uniq = fh.uniq + MBLOCK_FILE_UNIQ_DELTA;
+    if (fh.uniq != 0)
+        mbfp->uniq = fh.uniq + MBLOCK_FILE_UNIQ_DELTA;
 
     bound = addr + mblock_file_meta_len();
     addr += MBLOCK_FILE_META_HDRLEN;
@@ -457,6 +465,9 @@ mblock_file_meta_load(struct mblock_file *mbfp)
             err = mblock_file_insert(mbfp, mbid);
             if (ev(err))
                 return merr(EBADMSG);
+
+            if (HSE_UNLIKELY(fh.uniq == 0))
+                mbfp->uniq = max_t(uint32_t, mbfp->uniq, uniquifier(mbid) + 1);
         }
 
         addr += MBLOCK_FILE_META_OIDLEN;
@@ -942,8 +953,9 @@ mblock_file_map_getbase(
 {
     struct mblock_mmap *map;
     char *addr;
-    int   cidx;
+    int   cidx, rc;
     off_t soff, off;
+    merr_t err = 0;
 
     if (!mbfp || !addr_out)
         return merr(EINVAL);
@@ -960,11 +972,15 @@ mblock_file_map_getbase(
         /* Setup map */
         addr = mmap(NULL, MBLOCK_MMAP_CHUNK_SIZE, PROT_READ, MAP_SHARED, mbfp->fd, soff);
         if (addr == MAP_FAILED) {
-            mutex_unlock(&mbfp->mmap_lock);
-            return merr(errno);
+            err = merr(errno);
+            goto exit;
         }
 
-        madvise(addr, MBLOCK_MMAP_CHUNK_SIZE, MADV_RANDOM);
+        rc = madvise(addr, MBLOCK_MMAP_CHUNK_SIZE, MADV_RANDOM);
+        if (rc) {
+            err = merr(errno);
+            goto exit;
+        }
 
         map->addr = addr;
         assert(map->ref == 0);
@@ -972,12 +988,18 @@ mblock_file_map_getbase(
     } else {
         assert(map->ref >= 1);
         ++map->ref;
+
+        rc = mprotect(addr + off, MBLOCK_SIZE_BYTES, PROT_READ);
+        if (rc)
+            err = merr(errno);
     }
+exit:
     mutex_unlock(&mbfp->mmap_lock);
 
-    *addr_out = addr + off;
+    if (!err)
+     *addr_out = addr + off;
 
-    return 0;
+    return err;
 }
 
 merr_t
