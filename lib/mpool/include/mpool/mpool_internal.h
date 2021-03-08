@@ -168,6 +168,7 @@ struct mblock_props {
     uint32_t mpr_alloc_cap;
     uint32_t mpr_write_len;
     uint32_t mpr_optimal_wrsz;
+    uint32_t mpr_write_len;
     uint32_t mpr_mclassp; /* enum mp_media_classp */
     uint8_t  mpr_iscommitted;
     uint8_t  mpr_rsvd1[7];

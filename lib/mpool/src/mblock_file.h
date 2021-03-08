@@ -176,7 +176,7 @@ mblock_file_write(
     off_t               off);
 
 merr_t
-mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc);
+mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t *wlen);
 
 merr_t
 mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);

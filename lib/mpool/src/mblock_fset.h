@@ -83,7 +83,7 @@ mblock_fset_read(
     off_t               off);
 
 merr_t
-mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t *wlen);
 
 merr_t
 mblock_fset_map_getbase(

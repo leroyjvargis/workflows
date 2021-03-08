@@ -93,10 +93,14 @@ OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
 
 struct mblock_oid_omf {
     __le64 mblk_id;
+    __le32 mblk_wlen;
 } __packed;
 
 /* Define set/get methods for mblock_oid_omf */
 OMF_SETGET(struct mblock_oid_omf, mblk_id, 64);
+OMF_SETGET(struct mblock_oid_omf, mblk_wlen, 32);
+
+#define MBLOCK_FILE_META_OIDLEN (sizeof(struct mblock_oid_omf))
 
 void
 omf_mblock_metahdr_pack_htole(struct mblock_metahdr *mh, char *outbuf);

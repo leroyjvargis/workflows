@@ -448,7 +448,7 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 }
 
 merr_t
-mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t *wlen)
 {
     struct mblock_file *mbfp;
 
@@ -460,7 +460,7 @@ mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 
     mbfp = mbfsp->filev[file_index(*mbidv)];
 
-    return mblock_file_find(mbfp, mbidv, mbidc);
+    return mblock_file_find(mbfp, mbidv, mbidc, wlen);
 }
 
 merr_t

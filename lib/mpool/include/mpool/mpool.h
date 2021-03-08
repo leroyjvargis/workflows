@@ -283,17 +283,6 @@ mpool_mblock_alloc(
     struct mblock_props *props);
 
 /**
- * mpool_mblock_find() - look up an mblock by object ID
- * @mp:    mpool
- * @objid: mblock object ID
- * @props: mblock properties (returned if the ptr is non-NULL)
- *
- * Return: %0 on success, <%0 on error
- */
-int64_t
-mpool_mblock_find(struct mpool *mp, uint64_t objid, struct mblock_props *props);
-
-/**
  * mpool_mblock_commit() - commit an mblock
  * @mp:   mpool
  * @mbid: mblock object ID
