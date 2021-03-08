@@ -468,8 +468,7 @@ mblock_fset_write(
     struct mblock_fset *mbfsp,
     uint64_t            mbid,
     const struct iovec *iov,
-    int                 iovc,
-    off_t               off)
+    int                 iovc)
 {
     struct mblock_file *mbfp;
 
@@ -478,7 +477,7 @@ mblock_fset_write(
 
     mbfp = mbfsp->filev[file_index(mbid)];
 
-    return mblock_file_write(mbfp, mbid, iov, iovc, off);
+    return mblock_file_write(mbfp, mbid, iov, iovc);
 }
 
 merr_t

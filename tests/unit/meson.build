@@ -299,6 +299,7 @@ foreach c, tests : components
                     args: args,
                     env: t_env,
                     is_parallel: t_is_parallel,
+                    timeout: 60,
                     suite: t_suites,
                     timeout: 90,
                 )
@@ -315,6 +316,7 @@ foreach c, tests : components
                 args: t_args,
                 env: t_env,
                 is_parallel: t_is_parallel,
+                timeout: 60,
                 suite: t_suites,
                 timeout: 90,
             )

@@ -247,7 +247,7 @@ mblk_blow_chunks(
      * For example, if ax == 2 and bx == 4, then write is called on iovec
      * segments 2, 3 and 4 as follows:
      *
-     *    mpool_mblock_write(ds, mbid, iov + ax, bx - ax + 1, off);
+     *    mpool_mblock_write(ds, mbid, iov + ax, bx - ax + 1);
      *
      * Note however that the first (ax==2) and last segments (bx==4)
      * may need to be trimmed.  Local vars aoff and alen identify

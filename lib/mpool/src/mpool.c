@@ -151,7 +151,7 @@ mpool_destroy(struct mpool *mp)
 }
 
 merr_t
-mpool_params_get2(struct mpool *mp, struct mpool_params *params)
+mpool_params_get(struct mpool *mp, struct mpool_params *params)
 {
     char   ubuf[UUID_STRLEN + 1];
     merr_t err;
@@ -170,11 +170,13 @@ mpool_params_get2(struct mpool *mp, struct mpool_params *params)
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
         params->mp_mblocksz[i] = MBLOCK_SIZE_MB;
 
+    params->mp_vma_size_max = 30;
+
     return 0;
 }
 
 merr_t
-mpool_params_set2(struct mpool *mp, struct mpool_params *params)
+mpool_params_set(struct mpool *mp, struct mpool_params *params)
 {
     if (!uuid_is_null(params->mp_utype)) {
         char ubuf[UUID_STRLEN + 1];

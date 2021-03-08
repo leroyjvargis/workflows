@@ -44,26 +44,6 @@ mpool_params_init(struct mpool_params *params)
 {
 }
 
-merr_t
-mpool_params_get(struct mpool *mp, struct mpool_params *params)
-{
-    memset(params, 0, sizeof(*params));
-
-    return 0;
-}
-
-merr_t
-mpool_params_set(struct mpool *mp, struct mpool_params *params)
-{
-    return 0;
-}
-
-merr_t
-mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
-{
-    return 0;
-}
-
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "mpool_ut_impl.i"
 #endif

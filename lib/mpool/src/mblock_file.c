@@ -913,8 +913,7 @@ mblock_file_write(
     struct mblock_file *mbfp,
     uint64_t            mbid,
     const struct iovec *iov,
-    int                 iovc,
-    off_t               tmpoff)
+    int                 iovc)
 {
     size_t    len;
     off_t     woff, eoff, off;
@@ -938,8 +937,6 @@ mblock_file_write(
 
     wlenp = mbfp->wlenv + block_id(mbid);
     off = atomic_read(wlenp);
-
-    assert(tmpoff == off);
 
     woff = block_off(mbid);
     eoff = woff + MBLOCK_SIZE_BYTES - 1;

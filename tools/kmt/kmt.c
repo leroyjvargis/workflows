@@ -142,7 +142,6 @@
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 
 #include <xoroshiro/xoroshiro.h>
 
@@ -1984,7 +1983,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.put++;
     inst->stats.putbytes += secsz;
 
-    err = merr_to_hse_err(mpool_mblock_write2(impl->ds, nmbid, iov, 1, 0));
+    err = merr_to_hse_err(mpool_mblock_write(impl->ds, nmbid, iov, 1));
     if (err) {
         eprint("%s: mbwrite %lx failed: %lx\n", __func__, r->mbid, err);
         return err;

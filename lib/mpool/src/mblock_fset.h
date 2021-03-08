@@ -71,8 +71,7 @@ mblock_fset_write(
     struct mblock_fset *mbfsp,
     uint64_t            mbid,
     const struct iovec *iov,
-    int                 iovc,
-    off_t               off);
+    int                 iovc);
 
 merr_t
 mblock_fset_read(

@@ -123,7 +123,7 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
 }
 
 merr_t
-mpool_mblock_write2(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
+mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     struct media_class  *mc;
     enum mp_media_classp mclass;
@@ -134,7 +134,7 @@ mpool_mblock_write2(struct mpool *mp, uint64_t mbid, const struct iovec *iov, in
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
 
-    return mblock_fset_write(mclass_fset(mc), mbid, iov, iovc, off);
+    return mblock_fset_write(mclass_fset(mc), mbid, iov, iovc);
 }
 
 merr_t

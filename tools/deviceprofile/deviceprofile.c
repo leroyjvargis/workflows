@@ -3,7 +3,6 @@
  */
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 #if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
 #include <hdr_histogram.h>
 #else

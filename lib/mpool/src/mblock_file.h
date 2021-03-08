@@ -165,15 +165,13 @@ mblock_file_read(
  * @mbid:   mblock id
  * @iov:    iovec ptr
  * @iovc:   iov count
- * @off:    offset
  */
 merr_t
 mblock_file_write(
     struct mblock_file *mbfp,
     uint64_t            mbid,
     const struct iovec *iov,
-    int                 iovc,
-    off_t               off);
+    int                 iovc);
 
 merr_t
 mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t *wlen);
