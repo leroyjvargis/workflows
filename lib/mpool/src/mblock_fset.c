@@ -44,6 +44,7 @@ struct mblock_fset {
     char  *maddr;
     size_t metasz;
     int    metafd;
+    bool   mlock;
     char   mname[32];
 };
 
@@ -76,7 +77,7 @@ mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
 }
 
 static merr_t
-mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz)
+mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz, bool mlock)
 {
     int   prot;
     char *addr;
@@ -87,6 +88,15 @@ mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz)
         return merr(errno);
 
     mbfsp->maddr = addr;
+    mbfsp->mlock = false;
+
+    if (mlock) {
+        int rc;
+
+        rc = mlock2(addr, sz, MLOCK_ONFAULT);
+        if (!rc)
+            mbfsp->mlock = true;
+    }
 
     return 0;
 }
@@ -94,8 +104,16 @@ mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz)
 static void
 mblock_fset_meta_unmap(struct mblock_fset *mbfsp, size_t sz)
 {
-    if (mbfsp->maddr)
-        munmap(mbfsp->maddr, sz);
+    char *addr = mbfsp->maddr;
+
+    if (addr) {
+        if (mbfsp->mlock) {
+            munlock(addr, sz);
+            mbfsp->mlock = false;
+        }
+        munmap(addr, sz);
+    }
+
     mbfsp->maddr = NULL;
 }
 
@@ -111,7 +129,7 @@ mblock_fset_meta_format(struct mblock_fset *mbfsp)
 
     addr = mbfsp->maddr;
     if (!addr) {
-        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len);
+        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, false);
         if (ev(err))
             return err;
 
@@ -144,7 +162,7 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp)
 
     addr = mbfsp->maddr;
     if (!addr) {
-        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len);
+        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, false);
         if (ev(err))
             return err;
 
@@ -284,7 +302,7 @@ mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_
 
     mbfsp->metasz = MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len());
 
-    err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz);
+    err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, true);
     if (ev(err))
         goto errout;
 
