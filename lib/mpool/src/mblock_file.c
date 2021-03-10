@@ -56,13 +56,13 @@ struct mblock_rgnmap {
     struct mutex    rm_lock;
     struct rb_root  rm_root;
 
-    struct kmem_cache *rm_cache __aligned(SMP_CACHE_BYTES);
+    struct kmem_cache *rm_cache HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 
 struct mblock_mmap {
     char   *addr;
-    int64_t ref __aligned(SMP_CACHE_BYTES);
+    int64_t ref HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 /**
@@ -92,15 +92,15 @@ struct mblock_file {
 
     atomic_t      *wlenv;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     struct mutex uniq_lock;
     uint32_t uniq;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     struct mutex meta_lock;
     char *meta_addr;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     struct mutex mmap_lock;
     int mmapc;
     struct mblock_mmap *mmapv;
@@ -487,16 +487,24 @@ mblock_file_meta_load(struct mblock_file *mbfp)
     return 0;
 }
 
+static inline bool
+omf_isvalid(uint64_t mbid, uint64_t omfid, uint32_t wlen, uint32_t omfwlen, bool exists)
+{
+    return (exists && mbid == omfid && wlen == omfwlen) ||
+       (!exists && 0 == omfid && 0 == omfwlen);
+
+}
+
 static merr_t
 mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
 {
     struct mblock_oid_omf *mbomf;
 
-    uint32_t block;
+    uint32_t block, wlen, omfwlen;
     char    *addr;
     int      rc;
     merr_t   err = 0;
-    uint32_t wlen;
+    uint64_t omfid;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -507,12 +515,19 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
     addr = mbfp->meta_addr;
     block = block_id(*mbidv);
 
+    wlen = atomic_read(mbfp->wlenv + block);
+
     addr += MBLOCK_FILE_META_HDRLEN;
     addr += (block * MBLOCK_FILE_META_OIDLEN);
 
-    wlen = atomic_read(mbfp->wlenv + block);
-
     mbomf = (struct mblock_oid_omf *)addr;
+    omfid = omf_mblk_id(mbomf);
+    omfwlen = omf_mblk_wlen(mbomf);
+
+    if (!omf_isvalid(*mbidv, omfid, wlen, omfwlen, delete)) {
+        assert(0);
+        return merr(EBUG);
+    }
 
     mutex_lock(&mbfp->meta_lock);
 
@@ -754,11 +769,45 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
     return 0;
 }
 
+static merr_t
+mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool exists)
+{
+    struct mblock_oid_omf *mbomf;
+    uint32_t block, wlen, omfwlen;
+    char    *addr;
+    uint64_t omfid;
+
+    if (ev(!mbfp || !mbidv))
+        return merr(EINVAL);
+
+    if (mbidc > 1)
+        return merr(ENOTSUP);
+
+    addr = mbfp->meta_addr;
+    block = block_id(*mbidv);
+
+    wlen = atomic_read(mbfp->wlenv + block);
+
+    addr += MBLOCK_FILE_META_HDRLEN;
+    addr += (block * MBLOCK_FILE_META_OIDLEN);
+
+    mbomf = (struct mblock_oid_omf *)addr;
+    omfid = omf_mblk_id(mbomf);
+    omfwlen = omf_mblk_wlen(mbomf);
+
+    if (!omf_isvalid(*mbidv, omfid, wlen, omfwlen, exists)) {
+        assert(0);
+        return merr(EBUG);
+    }
+
+    return 0;
+}
+
 merr_t
 mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t *wlen)
 {
     uint32_t block;
-    merr_t   err;
+    merr_t   err, err2;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -769,10 +818,14 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t 
     block = block_id(*mbidv);
 
     err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
-    if (!err && wlen)
+    if (err && merr_errno(err) != ENOENT)
+        return err;
+
+    err2 = mblock_file_meta_validate(mbfp, mbidv, mbidc, !err);
+    if (!err2 && wlen)
         *wlen = atomic_read(mbfp->wlenv + block);
 
-    return err;
+    return err2 ? : err;
 }
 
 merr_t
@@ -787,8 +840,8 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (ev(mbidc > 1))
         return merr(ENOTSUP);
 
-    err = mblock_file_find(mbfp, mbidv, mbidc, NULL);
-    if (ev(err))
+    err = mblock_rgn_find(&mbfp->rgnmap, block_id(*mbidv) + 1);
+    if (err)
         return err;
 
     err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
@@ -881,7 +934,7 @@ mblock_file_read(
 {
     off_t  roff, eoff;
     size_t len = 0;
-    bool   verify = true;
+    merr_t err;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
@@ -889,13 +942,9 @@ mblock_file_read(
     if (iovc == 0)
         return 0;
 
-    if (verify) {
-        merr_t err;
-
-        err = mblock_file_find(mbfp, &mbid, 1, NULL);
-        if (ev(err))
-            return err;
-    }
+    err = mblock_rgn_find(&mbfp->rgnmap, block_id(mbid) + 1);
+    if (err)
+        return err;
 
     roff = block_off(mbid);
     eoff = roff + MBLOCK_SIZE_BYTES - 1;
@@ -917,7 +966,6 @@ mblock_file_write(
 {
     size_t    len;
     off_t     woff, eoff, off;
-    bool      verify = true;
     merr_t    err;
     atomic_t *wlenp;
 
@@ -927,13 +975,9 @@ mblock_file_write(
     if (iovc == 0)
         return 0;
 
-    if (verify) {
-        merr_t err;
-
-        err = mblock_file_find(mbfp, &mbid, 1, NULL);
-        if (ev(err))
-            return err;
-    }
+    err = mblock_rgn_find(&mbfp->rgnmap, block_id(mbid) + 1);
+    if (err)
+        return err;
 
     wlenp = mbfp->wlenv + block_id(mbid);
     off = atomic_read(wlenp);

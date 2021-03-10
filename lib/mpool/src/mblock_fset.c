@@ -141,7 +141,11 @@ mblock_fset_meta_format(struct mblock_fset *mbfsp)
     omf_mblock_metahdr_pack_htole(&mh, addr);
 
     rc = msync(addr, len, MS_SYNC);
-    if (ev(rc < 0))
+    if (rc < 0)
+        err = merr(errno);
+
+    rc = fsync(mbfsp->metafd);
+    if (rc < 0)
         err = merr(errno);
 
     if (unmap)
@@ -421,6 +425,8 @@ merr_t
 mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
+    merr_t err;
+    int    rc;
 
     if (ev(!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->fcnt))
         return merr(EINVAL);
@@ -430,7 +436,15 @@ mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 
     mbfp = mbfsp->filev[file_index(*mbidv)];
 
-    return mblock_file_commit(mbfp, mbidv, mbidc);
+    err = mblock_file_commit(mbfp, mbidv, mbidc);
+    if (ev(err))
+        return err;
+
+    rc = fsync(mbfsp->metafd);
+    if (rc < 0)
+        return merr(errno);
+
+    return 0;
 }
 
 merr_t
@@ -453,6 +467,8 @@ merr_t
 mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
+    merr_t err;
+    int    rc;
 
     if (ev(!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->fcnt))
         return merr(EINVAL);
@@ -462,7 +478,15 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 
     mbfp = mbfsp->filev[file_index(*mbidv)];
 
-    return mblock_file_delete(mbfp, mbidv, mbidc);
+    err = mblock_file_delete(mbfp, mbidv, mbidc);
+    if (ev(err))
+        return err;
+
+    rc = fsync(mbfsp->metafd);
+    if (rc < 0)
+        return merr(errno);
+
+    return 0;
 }
 
 merr_t
