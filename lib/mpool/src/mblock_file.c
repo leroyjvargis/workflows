@@ -1094,6 +1094,9 @@ mblock_file_unmap(
     if (--map->ref == 0) {
         int rc;
 
+        rc = madvise(addr, MBLOCK_MMAP_CHUNK_SIZE, MADV_DONTNEED);
+        ev(rc);
+
         rc = munmap(addr, MBLOCK_MMAP_CHUNK_SIZE);
         if (rc)
             err = merr(errno);
