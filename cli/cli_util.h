@@ -13,7 +13,7 @@ hse_kvdb_params(const char *mpool, bool get);
 
 int
 kvdb_list_print(
-    const char *         mpname,
+    const char *         kvdbname,
     struct hse_params *  params,
     struct yaml_context *yc,
     bool                 verbose,
@@ -21,7 +21,7 @@ kvdb_list_print(
 
 int
 kvdb_compact_request(
-    const char *       mpool,
+    const char *       kvdb,
     struct hse_params *params,
     const char *       request_type,
     unsigned           timeout_sec);

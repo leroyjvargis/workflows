@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_mpool
+
 #include <stdlib.h>
 #include <uuid/uuid.h>
 
@@ -12,6 +14,7 @@
 #include <hse_util/string.h>
 
 #include <hse/hse.h>
+#include <mpool/mpool.h>
 #include <mpool/mpool_internal.h>
 
 #include "mpool.h"
@@ -138,16 +141,37 @@ mpool_destroy(struct mpool *mp)
         struct media_class *mc;
 
         mc = mp->mc[i];
+        if (mc) {
+            if (i == MP_MED_CAPACITY)
+                mclass_params_remove(mc);
 
-        if (i == MP_MED_CAPACITY)
-            mclass_params_remove(mc);
-
-        mclass_destroy(mc);
+            mclass_destroy(mc);
+        }
     }
 
     free(mp);
 
     return 0;
+}
+
+merr_t
+mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
+{
+    if (mclass >= MP_MED_COUNT)
+        return merr(EINVAL);
+
+    if (!mp->mc[mclass])
+        return merr(ENOENT);
+
+    if (props)
+        props->mc_mblocksz = MBLOCK_SIZE_MB;
+
+    return 0;
+}
+
+void
+mpool_params_init(struct mpool_params *params)
+{
 }
 
 merr_t
@@ -196,3 +220,13 @@ mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass)
     assert(mclass < MP_MED_COUNT);
     return mp->mc[mclass];
 }
+
+merr_t
+mpool_usage_get(struct mpool *mp, struct mpool_usage *usage)
+{
+    return 0;
+}
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "mpool_ut_impl.i"
+#endif

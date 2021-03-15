@@ -181,14 +181,14 @@ rest_kvdb_compact_status_get(
     return 0;
 }
 merr_t
-kvdb_rest_register(const char *mp_name, void *kvdb)
+kvdb_rest_register(const char *kvdb_name, void *kvdb)
 {
     merr_t status, err = 0;
 
-    if (!mp_name || !kvdb)
+    if (!kvdb_name || !kvdb)
         return merr(ev(EINVAL));
 
-    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "mpool/%s", mp_name);
+    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "mpool/%s", kvdb_name);
 
     if (ev(status) && !err)
         err = status;
@@ -199,17 +199,17 @@ kvdb_rest_register(const char *mp_name, void *kvdb)
         rest_kvdb_compact_status_get,
         rest_kvdb_compact_request,
         "mpool/%s/compact",
-        mp_name);
+        kvdb_name);
     return err;
 }
 
 merr_t
-kvdb_rest_deregister(const char *mp_name)
+kvdb_rest_deregister(const char *kvdb_name)
 {
-    if (!mp_name)
+    if (!kvdb_name)
         return merr(ev(EINVAL));
 
-    return rest_url_deregister("mpool/%s", mp_name);
+    return rest_url_deregister("mpool/%s", kvdb_name);
 }
 
 /*---------------------------------------------------------------
@@ -930,16 +930,16 @@ done:
 }
 
 merr_t
-kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
+kvs_rest_register(const char *kvdb_name, const char *kvs_name, void *kvs)
 {
     merr_t err = 0;
     merr_t status;
 
-    if (!mp_name || !kvs_name || !kvs)
+    if (!kvdb_name || !kvs_name || !kvs)
         return merr(ev(EINVAL));
 
     status = rest_url_register(
-        kvs, URL_FLAG_EXACT, rest_kvs_tree, 0, "mpool/%s/kvs/%s/cn/tree", mp_name, kvs_name);
+        kvs, URL_FLAG_EXACT, rest_kvs_tree, 0, "mpool/%s/kvs/%s/cn/tree", kvdb_name, kvs_name);
 
     if (ev(status) && !err)
         err = status;
@@ -950,7 +950,7 @@ kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
         rest_kvs_curperf,
         0,
         "mpool/%s/kvs/%s/curperf",
-        mp_name,
+        kvdb_name,
         kvs_name);
 
     if (ev(status) && !err)
@@ -960,20 +960,20 @@ kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
 }
 
 merr_t
-kvs_rest_deregister(const char *mp_name, const char *kvs_name)
+kvs_rest_deregister(const char *kvdb_name, const char *kvs_name)
 {
     merr_t err = 0;
     merr_t status;
 
-    if (!mp_name || !kvs_name)
+    if (!kvdb_name || !kvs_name)
         return merr(ev(EINVAL));
 
-    status = rest_url_deregister("mpool/%s/kvs/%s/cn/tree", mp_name, kvs_name);
+    status = rest_url_deregister("mpool/%s/kvs/%s/cn/tree", kvdb_name, kvs_name);
 
     if (ev(status) && !err)
         err = status;
 
-    status = rest_url_deregister("mpool/%s/kvs/%s/curperf", mp_name, kvs_name);
+    status = rest_url_deregister("mpool/%s/kvs/%s/curperf", kvdb_name, kvs_name);
 
     if (ev(status) && !err)
         err = status;

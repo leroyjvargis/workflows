@@ -62,6 +62,10 @@ mpool_mcache_mmap(
 
         mclass = mcid_to_mclass(mclassid(mbidv[i]));
         mc = mpool_mclass_handle(mp, mclass);
+        if (!mc) {
+            err = merr(ENOENT);
+            goto errout;
+        }
 
         err = mblock_fset_map_getbase(mclass_fset(mc), mbidv[i], &addr);
         if (ev(err))
@@ -100,6 +104,7 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
 
         mclass = mcid_to_mclass(mclassid(mbid));
         mc = mpool_mclass_handle(map->mp, mclass);
+        assert(mc);
 
         err = mblock_fset_unmap(mclass_fset(mc), mbid);
         if (err)

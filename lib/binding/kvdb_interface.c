@@ -103,7 +103,7 @@ hse_kvdb_fini(void)
 }
 
 hse_err_t
-hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
+hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
 {
     struct kvdb_cparams dbparams;
     struct mpool_params mparams;
@@ -112,7 +112,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     u64                 oid1, oid2;
     u64                 tstart;
 
-    if (HSE_UNLIKELY(!mpool_name))
+    if (HSE_UNLIKELY(!kvdb_name))
         return merr_to_hse_err(merr(EINVAL));
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
@@ -126,7 +126,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open(mpool_name, params, O_RDWR | O_CREAT, &ds);
+    err = mpool_open(kvdb_name, params, O_RDWR | O_CREAT, &ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -213,7 +213,7 @@ handle_rparams(struct kvdb_rparams *params)
 }
 
 hse_err_t
-hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hse_kvdb **handle)
+hse_kvdb_open(const char *kvdb_name, const struct hse_params *params, struct hse_kvdb **handle)
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
@@ -221,7 +221,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     struct kvdb_rparams rparams;
     u64                 tstart;
 
-    if (HSE_UNLIKELY(!mpool_name || !handle))
+    if (HSE_UNLIKELY(!kvdb_name || !handle))
         return merr_to_hse_err(merr(EINVAL));
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
@@ -241,7 +241,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, params, O_RDWR, &mp);
+    err = mpool_open(kvdb_name, params, O_RDWR, &mp);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -259,7 +259,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
             goto close_ds;
     }
 
-    err = ikvdb_open(mpool_name, mp, params, &ikvdb);
+    err = ikvdb_open(kvdb_name, mp, params, &ikvdb);
     if (ev(err))
         goto close_ds;
 
@@ -269,7 +269,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
         char   sock[PATH_MAX];
         size_t n;
 
-        n = snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), mpool_name);
+        n = snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb_name);
 
         if (n >= sizeof(sock)) {
             hse_log(

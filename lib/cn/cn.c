@@ -1046,7 +1046,7 @@ cn_perfc_alloc(struct cn *cn)
     };
 
     i = snprintf(
-        name_buf, sizeof(name_buf), "%s%s%s", cn->cn_mpname, IKVDB_SUB_NAME_SEP, cn->cn_kvsname);
+        name_buf, sizeof(name_buf), "%s%s%s", cn->cn_kvdbname, IKVDB_SUB_NAME_SEP, cn->cn_kvsname);
 
     if (i >= sizeof(name_buf)) {
         hse_log(HSE_WARNING "cn perfc name buffer too small");
@@ -1104,7 +1104,7 @@ cn_open(
     struct cndb *       cndb,
     u64                 cnid,
     struct kvs_rparams *rp,
-    const char *        mp_name,
+    const char *        kvdb_name,
     const char *        kvs_name,
     struct kvdb_health *health,
     uint                flags,
@@ -1126,7 +1126,7 @@ cn_open(
     assert(ds);
     assert(kvs);
     assert(cndb);
-    assert(mp_name);
+    assert(kvdb_name);
     assert(kvs_name);
     assert(health);
     assert(cn_out);
@@ -1153,7 +1153,7 @@ cn_open(
         *rp = kvs_rparams_defaults();
     }
 
-    strlcpy(cn->cn_mpname, mp_name, sizeof(cn->cn_mpname));
+    strlcpy(cn->cn_kvdbname, kvdb_name, sizeof(cn->cn_kvdbname));
     strlcpy(cn->cn_kvsname, kvs_name, sizeof(cn->cn_kvsname));
 
     cn->cn_kvdb = cn_kvdb;
@@ -1253,7 +1253,7 @@ cn_open(
         HSE_NOTICE "cn_open %s/%s replay %d fanout %u "
                    "pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
                    "kb %lu%c/%lu vb %lu%c/%lu",
-        cn->cn_mpname,
+        cn->cn_kvdbname,
         cn->cn_kvsname,
         cn->cn_replay,
         cn->cp->cp_fanout,

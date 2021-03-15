@@ -35,7 +35,7 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
 
 /**
  * diag_kvdb_open() - open a kvdb for diagnostic purposes.
- * @mp_name:        mpool name
+ * @kvdb_name:      kvdb name
  * @rparams:        fixed configuration parameters
  * @kvdb:           (output) handle to access the opened KVDB
  *
@@ -46,7 +46,7 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
  */
 merr_t
 diag_kvdb_open(
-    const char *         mp_name,
+    const char *         kvdb_name,
     struct kvdb_rparams *rparams,
     struct hse_kvdb **   kvdb);
 

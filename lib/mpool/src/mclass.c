@@ -140,7 +140,7 @@ mclass_close(struct media_class *mc)
 void
 mclass_destroy(struct media_class *mc)
 {
-    if (ev(!mc))
+    if (!mc)
         return;
 
     mblock_fset_remove(mc->mbfsp);
