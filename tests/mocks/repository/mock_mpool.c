@@ -240,7 +240,6 @@ _mpool_mcache_mmap(
     struct mpool *            mp,
     size_t                    mbidc,
     uint64_t *                mbidv,
-    enum mpc_vma_advice       advice,
     struct mpool_mcache_map **handle)
 {
     struct mocked_map *map = 0;

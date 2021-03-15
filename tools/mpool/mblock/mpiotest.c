@@ -357,7 +357,7 @@ verify_with_mcache(
 
 	/* If we don't already have a map, create it */
 	if (!minfo->map) {
-		err = mpool_mcache_mmap(mp, mbidc, mbidv, MPC_VMA_COLD, &minfo->map);
+		err = mpool_mcache_mmap(mp, mbidc, mbidv, &minfo->map);
 		if (err)
 			goto mcache_map_err;
 

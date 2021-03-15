@@ -343,7 +343,6 @@ static merr_t
 kvset_map_blklist(
     struct mpool *            ds,
     struct blk_list *         blks,
-    enum mpc_vma_advice       advice,
     u64                       mblock_max,
     struct mpool_mcache_map **mapv)
 {
@@ -366,7 +365,7 @@ kvset_map_blklist(
     while (idc > 0) {
         cnt = min_t(uint, idc, mblock_max);
 
-        err = mpool_mcache_mmap(ds, cnt, idv, advice, mapv + mx++);
+        err = mpool_mcache_mmap(ds, cnt, idv, mapv + mx++);
         if (ev(err))
             break;
 
@@ -432,7 +431,6 @@ kvset_create2(
     struct mpool *      ds;
     struct kvs_rparams *rp;
     struct cn_kvdb *    cn_kvdb;
-    enum mpc_vma_advice advice;
 
     merr_t        err;
     uint          i, j;
@@ -546,16 +544,8 @@ kvset_create2(
         kc_kvset_check(ds, cp, km, map->khm_mapv);
     }
 
-    hse_meminfo(NULL, &mavail, 30);
-    advice = (mavail > 64) ? MPC_VMA_PINNED : MPC_VMA_HOT;
-
-    if (ks->ks_node_level == 1)
-        advice = MPC_VMA_HOT;
-    else if (ks->ks_node_level > 1)
-        advice = MPC_VMA_WARM;
-
     /* map kblocks */
-    err = kvset_map_blklist(ds, &km->km_kblk_list, advice, mblock_max, ks->ks_kmapv);
+    err = kvset_map_blklist(ds, &km->km_kblk_list, mblock_max, ks->ks_kmapv);
     if (ev(err))
         goto err_exit;
 
@@ -749,6 +739,8 @@ kvset_create2(
 
     if (cn_tree_is_replay(tree))
         goto done;
+
+    hse_meminfo(NULL, &mavail, 30);
 
     /* Convert from bytes to GiB for comparison w/ mavail. */
     kvdb_kalen >>= 30;

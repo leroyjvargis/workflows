@@ -458,7 +458,6 @@ mpool_mcache_getpages(
  * @mp:     handle for the mpool
  * @mbidc:  mblock ID count
  * @mbidv:  vector of mblock IDs
- * @advice:
  * @mapp:   pointer to (opaque) mpool_mcache_map ptr
  *
  * Create an mcache map for the list of given mblock IDs
@@ -470,7 +469,6 @@ mpool_mcache_mmap(
     struct mpool             *mp,
     size_t                    mbidc,
     uint64_t                 *mbidv,
-    enum mpc_vma_advice       advice,
     struct mpool_mcache_map **mapp);
 
 /**

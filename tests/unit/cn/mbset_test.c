@@ -56,7 +56,6 @@ _mpool_mcache_mmap(
     struct mpool *            dsp,
     size_t                    idc,
     uint64_t *                idv,
-    enum mpc_vma_advice       advice,
     struct mpool_mcache_map **map)
 {
     size_t i;

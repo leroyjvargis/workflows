@@ -33,7 +33,6 @@ mpool_mcache_mmap(
     struct mpool             *mp,
     size_t                    mbidc,
     uint64_t                 *mbidv,
-    enum mpc_vma_advice       advice, /*unused*/
     struct mpool_mcache_map **mapp)
 {
     struct mpool_mcache_map *map;

@@ -170,13 +170,4 @@ struct mblock_props {
     uint32_t mpr_mclassp; /* enum mp_media_classp */
 };
 
-/**
- * enum mpc_vma_advice -
- * @MPC_VMA_COLD:
- * @MPC_VMA_WARM:
- * @MPC_VMA_HOT:
- * @MPC_VMA_PINNED:
- */
-enum mpc_vma_advice { MPC_VMA_COLD = 0, MPC_VMA_WARM, MPC_VMA_HOT, MPC_VMA_PINNED };
-
 #endif /* MPOOL_INTERNAL_H */

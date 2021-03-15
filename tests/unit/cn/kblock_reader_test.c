@@ -213,7 +213,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -324,7 +324,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_bloom, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -364,7 +364,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_leaf_nodes, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -404,7 +404,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_int_nodes, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -445,7 +445,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_cache_pt_leaf_nodes, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -485,7 +485,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_corrupt_header, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(err, 0);
 
     /* verify we can read w/o corruption */
@@ -558,7 +558,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
     err = write_kb_hdr(&kb, &blkdesc);
     ASSERT_EQ(err, 0);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     force_err = __LINE__;
