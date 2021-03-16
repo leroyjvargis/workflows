@@ -1120,7 +1120,7 @@ cn_open(
     uint64_t    mperr, staging_absent;
 
     struct cn_kvsetmk_ctx ctx = { 0 };
-    struct mpool_params   mpool_params;
+    struct mpool_props    mpprops;
     struct merr_info      ei;
 
     assert(ds);
@@ -1131,9 +1131,9 @@ cn_open(
     assert(health);
     assert(cn_out);
 
-    mperr = mpool_params_get(ds, &mpool_params);
+    mperr = mpool_props_get(ds, &mpprops);
     if (mperr) {
-        hse_log(HSE_ERR "mpool_params_get error %s\n", merr_info(mperr, &ei));
+        hse_log(HSE_ERR "mpool_props_get error %s\n", merr_info(mperr, &ei));
         return merr_errno(mperr);
     }
 
@@ -1166,7 +1166,7 @@ cn_open(
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
     cn->cn_hash = key_hash64(kvs_name, strlen(kvs_name));
-    cn->cn_mpool_params = mpool_params;
+    cn->cn_mpool_props = mpprops;
 
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
@@ -1699,7 +1699,7 @@ cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health)
 u64
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mp_media_classp mclass)
 {
-    return cn->cn_mpool_params.mp_mblocksz[mclass] << 20;
+    return cn->cn_mpool_props.mp_mblocksz[mclass] << 20;
 }
 
 u64
@@ -1707,7 +1707,7 @@ cn_vma_mblock_max(struct cn *cn, enum mp_media_classp mclass)
 {
     u64 vma_size_max, mblocksz;
 
-    vma_size_max = 1ul << cn->cn_mpool_params.mp_vma_size_max;
+    vma_size_max = 1ul << cn->cn_mpool_props.mp_vma_size_max;
     mblocksz = cn_mpool_dev_zone_alloc_unit_default(cn, mclass);
 
     assert(mblocksz > 0);

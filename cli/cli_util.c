@@ -14,7 +14,6 @@
 #include <hse_util/parse_num.h>
 
 #include <hse/hse.h>
-#include <hse/hse_experimental.h> /* need 'hse_mpool_utype' */
 
 static int
 rest_kvs_list(struct yaml_context *yc, const char *kvdb)

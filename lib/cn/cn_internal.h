@@ -75,7 +75,7 @@ struct cn {
     char cn_kvdbname[HSE_KVDB_NAME_LEN_MAX];
     char cn_kvsname[HSE_KVS_NAME_LEN_MAX];
 
-    struct mpool_params cn_mpool_params;
+    struct mpool_props cn_mpool_props;
 };
 
 #endif

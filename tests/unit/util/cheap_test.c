@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <uuid/uuid.h>
 #include <sys/mman.h>
 
 #include <hse_ut/framework.h>

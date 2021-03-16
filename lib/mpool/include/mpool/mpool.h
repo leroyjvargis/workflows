@@ -59,21 +59,6 @@ int64_t
 mpool_destroy(struct mpool *mp);
 
 /**
- * mpool_mclass_add() - Add a media class to an mpool
- * @mpname:  mpool name
- * @devname: device name
- * @mclass:  media class of the device
- * @flags:   mpool management flags
- */
-int64_t
-mpool_mclass_add(
-    const char          *mpname,
-    const char          *devname,
-    enum mp_media_classp mclass,
-    struct mpool_params *params,
-    uint32_t             flags);
-
-/**
  * mpool_mclass_get() - get properties of the specified media class
  * @mp:      mpool descriptor
  * @mclass:  input media mclass
@@ -95,28 +80,13 @@ int64_t
 mpool_usage_get(struct mpool *mp, struct mpool_usage *usage);
 
 /**
- * mpool_params_init() - initialize mpool params
- * @params: params instance to initialize
- */
-void
-mpool_params_init(struct mpool_params *params);
-
-/**
- * mpool_params_get() - get parameters of an activated mpool
+ * mpool_props_get() - get mpool properties
  * @mp:     mpool handle
- * @params: mpool parameters
+ * @props: mpool props
  */
 /* MTF_MOCK */
 int64_t
-mpool_params_get(struct mpool *mp, struct mpool_params *params);
-
-/**
- * mpool_params_set() - set parameters of an activated mpool
- * @mp:     mpool handle
- * @params: mpool parameters
- */
-int64_t
-mpool_params_set(struct mpool *mp, struct mpool_params *params);
+mpool_props_get(struct mpool *mp, struct mpool_props *props);
 
 /*
  * Mpool Data Manager APIs

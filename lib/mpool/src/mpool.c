@@ -6,7 +6,6 @@
 #define MTF_MOCK_IMPL_mpool
 
 #include <stdlib.h>
-#include <uuid/uuid.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
@@ -138,15 +137,8 @@ mpool_destroy(struct mpool *mp)
     mpool_mdc_root_destroy(mp);
 
     for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
-        struct media_class *mc;
-
-        mc = mp->mc[i];
-        if (mc) {
-            if (i == MP_MED_CAPACITY)
-                mclass_params_remove(mc);
-
-            mclass_destroy(mc);
-        }
+        if (mp->mc[i])
+            mclass_destroy(mp->mc[i]);
     }
 
     free(mp);
@@ -169,47 +161,17 @@ mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mcl
     return 0;
 }
 
-void
-mpool_params_init(struct mpool_params *params)
-{
-}
-
 merr_t
-mpool_params_get(struct mpool *mp, struct mpool_params *params)
+mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
-    char   ubuf[UUID_STRLEN + 1];
-    merr_t err;
-    int    i;
+    int i;
 
-    memset(params, 0, sizeof(*params));
-
-    /* Fill utype if present. */
-    err =
-        mclass_params_get(mp->mc[MP_MED_CAPACITY], "params-utype", (char *)ubuf, sizeof(ubuf) - 1);
-    if (!err) {
-        ubuf[UUID_STRLEN] = '\0';
-        uuid_parse((const char *)ubuf, params->mp_utype);
-    }
+    memset(props, 0, sizeof(*props));
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
-        params->mp_mblocksz[i] = MBLOCK_SIZE_MB;
+        props->mp_mblocksz[i] = MBLOCK_SIZE_MB;
 
-    params->mp_vma_size_max = 30;
-
-    return 0;
-}
-
-merr_t
-mpool_params_set(struct mpool *mp, struct mpool_params *params)
-{
-    if (!uuid_is_null(params->mp_utype)) {
-        char ubuf[UUID_STRLEN + 1];
-
-        uuid_unparse(params->mp_utype, ubuf);
-
-        return mclass_params_set(
-            mp->mc[MP_MED_CAPACITY], "params-utype", (const char *)ubuf, sizeof(ubuf) - 1);
-    }
+    props->mp_vma_size_max = 30;
 
     return 0;
 }

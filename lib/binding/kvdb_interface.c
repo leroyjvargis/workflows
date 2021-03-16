@@ -106,7 +106,6 @@ hse_err_t
 hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
 {
     struct kvdb_cparams dbparams;
-    struct mpool_params mparams;
     struct mpool *      ds;
     merr_t              err;
     u64                 oid1, oid2;
@@ -130,14 +129,6 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_params_get(ds, &mparams);
-    if (ev(err))
-        goto errout;
-
-    err = uuid_is_null(mparams.mp_utype) ? 0 : merr(EEXIST);
-    if (ev(err))
-        goto errout;
-
     for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
@@ -157,12 +148,6 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
         goto errout;
 
     err = ikvdb_make(ds, oid1, oid2, &dbparams, MPOOL_ROOT_LOG_CAP);
-    if (ev(err))
-        goto errout;
-
-    memcpy(mparams.mp_utype, &hse_mpool_utype, sizeof(mparams.mp_utype));
-
-    err = mpool_params_set(ds, &mparams);
     if (ev(err))
         goto errout;
 

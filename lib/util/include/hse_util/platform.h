@@ -38,7 +38,6 @@
 #include <hse_util/spinlock.h>
 #include <hse_util/time.h>
 #include <hse_util/timing.h>
-#include <hse_util/uuid.h>
 #include <hse_util/workqueue.h>
 
 /* For open/close/read/write */

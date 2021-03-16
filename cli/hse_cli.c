@@ -659,7 +659,6 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
 
     herr = hse_kvdb_make(kvdb_name, hp);
     if (herr) {
-        print_hse_err(cli, "hse_kvdb_make", herr);
         switch (hse_err_to_errno(herr)) {
             case EEXIST:
                 fprintf(
@@ -670,6 +669,7 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
                     kvdb_name, kvdb_name);
                 break;
             default:
+                print_hse_err(cli, "hse_kvdb_make", herr);
                 break;
         }
         goto done;

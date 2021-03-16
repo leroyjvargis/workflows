@@ -157,10 +157,10 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 }
 
 merr_t
-_mpool_params_get(struct mpool *mp, struct mpool_params *params)
+_mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
-    params->mp_vma_size_max = 30;
-    params->mp_mblocksz[MP_MED_CAPACITY] = 32 << 20;
+    props->mp_vma_size_max = 30;
+    props->mp_mblocksz[MP_MED_CAPACITY] = 32 << 20;
 
     return 0;
 }
@@ -739,7 +739,7 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mdc_append);
     MOCK_SET(mpool, _mpool_mdc_rewind);
     MOCK_SET(mpool, _mpool_mdc_read);
-    MOCK_SET(mpool, _mpool_params_get);
+    MOCK_SET(mpool, _mpool_props_get);
     MOCK_SET(mpool, _mpool_mclass_get);
 
     mapi_inject(mapi_idx_mpool_mdc_rootid_get, 0);
@@ -756,7 +756,7 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mblock_delete);
     MOCK_UNSET(mpool, _mpool_mblock_read);
     MOCK_UNSET(mpool, _mpool_mblock_write);
-    MOCK_UNSET(mpool, _mpool_params_get);
+    MOCK_UNSET(mpool, _mpool_props_get);
     MOCK_UNSET(mpool, _mpool_mclass_get);
 
     MOCK_UNSET(mpool, _mpool_mcache_mmap);

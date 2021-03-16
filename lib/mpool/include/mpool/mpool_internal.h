@@ -8,7 +8,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <uuid/uuid.h>
 #include <sys/uio.h>
 #include <sys/types.h>
 
@@ -30,15 +29,13 @@ enum mp_media_classp {
 #define MP_MED_INVALID U8_MAX
 
 /**
- * struct mpool_params -
+ * struct mpool_props -
  * @mp_vma_size_max:    max VMA map size (log2)
  * @mp_mblocksz:        mblock size by media class (MiB)
- * @mp_utype:           user-defined type
  */
-struct mpool_params {
+struct mpool_props {
     uint32_t mp_vma_size_max;
     uint32_t mp_mblocksz[MP_MED_COUNT];
-    uuid_t   mp_utype;
 };
 
 /**
