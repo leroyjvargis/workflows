@@ -16,8 +16,7 @@ kvdb_list_print(
     const char *         kvdbname,
     struct hse_params *  params,
     struct yaml_context *yc,
-    bool                 verbose,
-    int *                count);
+    bool                 verbose);
 
 int
 kvdb_compact_request(

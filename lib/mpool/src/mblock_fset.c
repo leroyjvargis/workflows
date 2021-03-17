@@ -38,6 +38,7 @@ struct mblock_fset {
     struct media_class *mc;
 
     atomic64_t           fidx;
+    size_t               fszmax;
     struct mblock_file **filev;
     int                  fcnt;
 
@@ -53,6 +54,8 @@ mblock_metahdr_init(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 {
     mh->vers = MBLOCK_METAHDR_VERSION;
     mh->magic = MBLOCK_METAHDR_MAGIC;
+    mh->fszmax_gb = mbfsp->fszmax >> 30;
+    mh->mblksz_mb = mclass_mblocksz(mbfsp->mc) >> 20;
     mh->mcid = mclass_id(mbfsp->mc);
     mh->fcnt = mbfsp->fcnt;
     mh->blkbits = MBID_BLOCK_BITS;
@@ -72,7 +75,9 @@ mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
 {
     off_t off;
 
-    off = MBLOCK_FSET_HDRLEN + (fidx * mblock_file_meta_len());
+    off = MBLOCK_FSET_HDRLEN +
+        (fidx * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz(mbfsp->mc)));
+
     *maddr = mbfsp->maddr + off;
 }
 
@@ -180,8 +185,11 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp)
     if (!valid)
         err = merr(EBADMSG);
 
-    if (!err && mh.fcnt != 0)
+    if (!err) {
         mbfsp->fcnt = mh.fcnt;
+        mbfsp->fszmax = (uint64_t)mh.fszmax_gb << 30;
+        mclass_mblocksz_set(mbfsp->mc, (uint32_t)mh.mblksz_mb << 20);
+    }
 
     if (unmap)
         mblock_fset_meta_unmap(mbfsp, len);
@@ -253,7 +261,8 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
         size_t sz;
 
         assert(mbfsp->fcnt != 0);
-        sz = MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len());
+        sz = MBLOCK_FSET_HDRLEN +
+            (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz(mbfsp->mc)));
 
         rc = fallocate(fd, 0, 0, sz);
         if (ev(rc < 0)) {
@@ -280,11 +289,17 @@ errout:
 }
 
 merr_t
-mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_fset **handle)
+mblock_fset_open(
+    struct media_class  *mc,
+    uint8_t              fcnt,
+    size_t               fszmax,
+    int                  flags,
+    struct mblock_fset **handle)
 {
-    struct mblock_fset *mbfsp;
+    struct mblock_fset        *mbfsp;
+    struct mblock_file_params  fparams;
 
-    size_t sz;
+    size_t sz, mblocksz;
     merr_t err;
     int    i;
 
@@ -297,6 +312,7 @@ mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_
 
     mbfsp->mc = mc;
     mbfsp->fcnt = fcnt ?: MBLOCK_FSET_FILES_DEFAULT;
+    mbfsp->fszmax = fszmax ? : MBLOCK_FILE_SIZE_MAX;
 
     err = mblock_fset_meta_open(mbfsp, flags);
     if (ev(err)) {
@@ -304,7 +320,17 @@ mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_
         return err;
     }
 
-    mbfsp->metasz = MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len());
+    mblocksz = mclass_mblocksz(mbfsp->mc);
+    if ((mbfsp->fszmax < mblocksz) ||
+        ((1ULL << MBID_BLOCK_BITS) * mblocksz < mbfsp->fszmax)) {
+        err = merr(EINVAL);
+        hse_log(HSE_ERR "%s: Invalid mblock parameters filesz %lu mblocksz %lu",
+                __func__, mbfsp->fszmax, mblocksz);
+        goto errout;
+    }
+
+    mbfsp->metasz = MBLOCK_FSET_HDRLEN +
+        (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
 
     err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, true);
     if (ev(err))
@@ -317,12 +343,16 @@ mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_
         goto errout;
     }
 
+    fparams.mblocksz = mblocksz;
+    fparams.fszmax = mbfsp->fszmax;
+
     for (i = 0; i < mbfsp->fcnt; i++) {
         char *addr;
 
         mblock_fset_meta_get(mbfsp, i, &addr);
 
-        err = mblock_file_open(mbfsp, mc, i + 1, flags, addr, &mbfsp->filev[i]);
+        fparams.fileid = i + 1;
+        err = mblock_file_open(mbfsp, mc, &fparams, flags, addr, &mbfsp->filev[i]);
         if (ev(err))
             goto errout;
     }

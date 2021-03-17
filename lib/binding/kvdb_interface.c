@@ -154,7 +154,10 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_MAKE, tstart);
 
 errout:
-    mpool_close(ds);
+    if (err)
+        mpool_destroy(ds);
+    else
+        mpool_close(ds);
 
     return merr_to_hse_err(err);
 }

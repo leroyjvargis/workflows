@@ -42,7 +42,7 @@ mpool_mblock_alloc(
 
     if (!err && props) {
         props->mpr_objid = *mbid;
-        props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
+        props->mpr_alloc_cap = mclass_mblocksz(mc);
         props->mpr_optimal_wrsz = 128 << 10;
         props->mpr_mclassp = mclass;
         props->mpr_write_len = 0;
@@ -123,7 +123,7 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
 
     if (!err && props) {
         props->mpr_objid = mbid;
-        props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
+        props->mpr_alloc_cap = mclass_mblocksz(mc);
         props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
         props->mpr_mclassp = mclass;
         props->mpr_write_len = wlen;

@@ -17,6 +17,7 @@
 #include <mpool/mpool_internal.h>
 
 #include "mpool.h"
+#include "mblock_fset.h"
 #include "mblock_file.h"
 #include "mdc.h"
 
@@ -34,16 +35,90 @@ struct mpool {
     char name[64];
 };
 
+enum param_key_index {
+    PARAM_PATH     = 0,
+    PARAM_ENV_PATH = 1,
+    PARAM_OBJSZ    = 2,
+    PARAM_FCNT     = 3,
+    PARAM_FSIZE    = 4,
+    PARAM_MAX      = 5,
+};
+
+static const char *param_key[PARAM_MAX][MP_MED_COUNT] =
+{
+    { "kvdb.storage_path", "kvdb.staging_path" },
+    { "HSE_STORAGE_PATH", "HSE_STAGING_PATH" },
+    { "kvdb.storage_objsz", "kvdb.staging_objsz" },
+    { "kvdb.storage_filecnt", "kvdb.staging_filecnt" },
+    { "kvdb.storage_filesz", "kvdb.staging_filesz" },
+};
+
+static merr_t
+mclass_params_init(enum mp_media_classp mclass, struct mclass_params *mparams)
+{
+    char *path;
+
+    path = getenv(param_key[PARAM_ENV_PATH][mclass]);
+    if (path) {
+        size_t n;
+
+        n = strlcpy(mparams->path, path, sizeof(mparams->path));
+        if (n >= sizeof(mparams->path))
+            return merr(EINVAL);
+    }
+
+    mparams->mblocksz = MBLOCK_SIZE_BYTES;
+    mparams->filecnt = MBLOCK_FSET_FILES_DEFAULT;
+    mparams->fszmax = MBLOCK_FILE_SIZE_MAX;
+
+    return 0;
+}
+
+static merr_t
+hse_to_mclass_params(
+    const struct hse_params *hparams,
+    enum mp_media_classp     mclass,
+    struct mclass_params    *mparams)
+{
+    char buf[PATH_MAX];
+
+    if (!hparams)
+        return 0;
+
+    if (hse_params_get(hparams, param_key[PARAM_PATH][mclass], buf, sizeof(buf), NULL) &&
+        buf[0] != '\0') {
+        size_t n;
+
+        n = strlcpy(mparams->path, buf, sizeof(mparams->path));
+        if (n >= sizeof(mparams->path))
+            return merr(EINVAL);
+    }
+
+    if (hse_params_get(hparams, param_key[PARAM_OBJSZ][mclass], buf, sizeof(buf), NULL) &&
+        buf[0] != '\0') {
+        mparams->mblocksz = atoi(buf);
+        mparams->mblocksz <<= 20;
+    }
+
+    if (hse_params_get(hparams, param_key[PARAM_FCNT][mclass], buf, sizeof(buf), NULL) &&
+        buf[0] != '\0')
+        mparams->filecnt = atoi(buf);
+
+    if (hse_params_get(hparams, param_key[PARAM_FSIZE][mclass], buf, sizeof(buf), NULL) &&
+        buf[0] != '\0') {
+        mparams->fszmax = atoi(buf);
+        mparams->fszmax <<= 30;
+    }
+
+    return 0;
+}
+
 merr_t
 mpool_open(const char *name, const struct hse_params *params, uint32_t flags, struct mpool **handle)
 {
     struct mpool *mp;
-
-    const char *param_key[MP_MED_COUNT] = { "kvdb.capdir", "kvdb.stgdir" };
-    const char *env_key[MP_MED_COUNT] = { "HSE_STORAGE_PATH", "HSE_STORAGE_STAGING_PATH" };
-    char        fbuf[4];
-    merr_t      err;
-    int         i, fcnt = 0;
+    merr_t        err;
+    int           i;
 
     *handle = NULL;
 
@@ -54,34 +129,29 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     if (ev(!mp))
         return merr(ENOMEM);
 
-    /* Extract the experimental filecnt parameter */
-    if (params && hse_params_get(params, "kvdb.filecnt", fbuf, sizeof(fbuf), NULL)) {
-        if (fbuf[0] != '\0')
-            fcnt = atoi(fbuf);
-    }
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        char dpath[PATH_MAX], *path;
+        struct mclass_params mparams = {};
 
-        /* cli args override env. */
-        path = getenv(env_key[i]);
-        if (params &&
-            hse_params_get(params, param_key[i], dpath, sizeof(dpath), NULL) && dpath[0] != '\0')
-            path = dpath;
+        err = mclass_params_init(i, &mparams);
+        if (err)
+            goto errout;
 
-        if (path) {
-            err = mclass_open(mp, i, path, fcnt, flags, &mp->mc[i]);
+        err = hse_to_mclass_params(params, i, &mparams);
+        if (err)
+            goto errout;
+
+        if (mparams.path[0] != '\0') {
+            err = mclass_open(mp, i, &mparams, flags, &mp->mc[i]);
             if (ev(err)) {
                 hse_log(
                     HSE_ERR "%s: Malformed storage path for mclass %d", __func__, i);
                 goto errout;
             }
-        } else {
-            if (i == MP_MED_CAPACITY) {
-                err = merr(EINVAL);
-                hse_log(HSE_ERR "%s: Capacity mclass path is missing for mpool %s", __func__, name);
-                goto errout;
-            }
+        } else if (i == MP_MED_CAPACITY) {
+            err = merr(EINVAL);
+            hse_log(HSE_ERR "%s: storage path not set for %s", __func__, name);
+            goto errout;
         }
     }
 
@@ -149,14 +219,17 @@ mpool_destroy(struct mpool *mp)
 merr_t
 mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
 {
+    struct media_class *mc;
+
     if (mclass >= MP_MED_COUNT)
         return merr(EINVAL);
 
-    if (!mp->mc[mclass])
+    mc = mp->mc[mclass];
+    if (!mc)
         return merr(ENOENT);
 
     if (props)
-        props->mc_mblocksz = MBLOCK_SIZE_MB;
+        props->mc_mblocksz = mclass_mblocksz(mc) >> 20;
 
     return 0;
 }
@@ -168,8 +241,13 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
 
     memset(props, 0, sizeof(*props));
 
-    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
-        props->mp_mblocksz[i] = MBLOCK_SIZE_MB;
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        struct media_class *mc;
+
+        mc = mp->mc[i];
+        if (mc)
+            props->mp_mblocksz[i] = mclass_mblocksz(mc) >> 20;
+    }
 
     props->mp_vma_size_max = 30;
 

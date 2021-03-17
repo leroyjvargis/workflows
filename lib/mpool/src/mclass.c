@@ -30,6 +30,7 @@
 struct media_class {
     DIR                *dirp;
     struct mblock_fset *mbfsp;
+    size_t              mblocksz;
     enum mclass_id      mcid;
     char                dpath[PATH_MAX];
 };
@@ -58,11 +59,10 @@ mclass_lockfile_rel(int dirfd)
 
 merr_t
 mclass_open(
-    struct mpool        *mp,
-    enum mp_media_classp mclass,
-    const char          *dpath,
-    uint8_t              fcnt,
-    int                  flags,
+    struct mpool         *mp,
+    enum mp_media_classp  mclass,
+    struct mclass_params *params,
+    int                   flags,
     struct media_class **handle)
 {
     struct media_class *mc;
@@ -70,13 +70,13 @@ mclass_open(
     DIR   *dirp;
     merr_t err;
 
-    if (ev(!mp || !dpath || !handle || mclass >= MP_MED_COUNT))
+    if (ev(!mp || !params || !handle || mclass >= MP_MED_COUNT))
         return merr(EINVAL);
 
-    dirp = opendir(dpath);
+    dirp = opendir(params->path);
     if (!dirp) {
         err = merr(errno);
-        hse_elog(HSE_ERR "%s: Opening mclass dir %s failed: @@e", err, __func__, dpath);
+        hse_elog(HSE_ERR "%s: Opening mclass dir %s failed: @@e", err, __func__, params->path);
         return err;
     }
 
@@ -97,9 +97,11 @@ mclass_open(
     mc->dirp = dirp;
     mc->mcid = mclass_to_mcid(mclass);
 
-    strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
+    mc->mblocksz = powerof2(params->mblocksz) ? params->mblocksz : MBLOCK_SIZE_BYTES;
 
-    err = mblock_fset_open(mc, fcnt, flags, &mc->mbfsp);
+    strlcpy(mc->dpath, params->path, sizeof(mc->dpath));
+
+    err = mblock_fset_open(mc, params->filecnt, params->fszmax, flags, &mc->mbfsp);
     if (err) {
         hse_elog(HSE_ERR "%s: Opening data files failed, mclass %d: @@e", err, __func__, mclass);
         goto err_exit1;
@@ -175,6 +177,18 @@ struct mblock_fset *
 mclass_fset(struct media_class *mc)
 {
     return mc->mbfsp;
+}
+
+size_t
+mclass_mblocksz(struct media_class *mc)
+{
+    return mc->mblocksz;
+}
+
+void
+mclass_mblocksz_set(struct media_class *mc, size_t mblocksz)
+{
+    mc->mblocksz = mblocksz;
 }
 
 enum mclass_id

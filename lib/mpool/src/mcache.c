@@ -116,18 +116,34 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
     return 0;
 }
 
+static size_t
+mblocksz_get(struct mpool_mcache_map *map, uint mbidx)
+{
+    struct media_class  *mc;
+    enum mp_media_classp mclass;
+
+    mclass = mcid_to_mclass(mclassid(map->mbidv[mbidx]));
+    mc = mpool_mclass_handle(map->mp, mclass);
+
+    return mclass_mblocksz(mc);
+}
+
 merr_t
 mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t len, int advice)
 {
-    size_t count;
+    size_t count, mblocksz;
 
-    if (!map || mbidx >= map->mbidc || off < 0 || off >= MBLOCK_SIZE_BYTES)
+    if (!map || mbidx >= map->mbidc || off < 0)
+        return merr(EINVAL);
+
+    mblocksz = mblocksz_get(map, mbidx);
+    if (off >= mblocksz)
         return merr(EINVAL);
 
     if (len == SIZE_MAX) {
         count = map->mbidc;
     } else {
-        if (off + len > MBLOCK_SIZE_BYTES)
+        if (off + len > mblocksz)
             return merr(EINVAL);
         count = mbidx + 1;
     }
@@ -140,7 +156,7 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
         if (!addr || addr == MAP_FAILED)
             return merr(EINVAL);
 
-        len = MBLOCK_SIZE_BYTES - off;
+        len = mblocksz - off;
 
         rc = madvise(addr + off, len, advice);
         if (rc)
@@ -169,6 +185,7 @@ mpool_mcache_getpages(
     const off_t              pagenumv[],
     void                    *addrv[])
 {
+    size_t mblocksz;
     char *addr;
     int   i;
 
@@ -179,11 +196,13 @@ mpool_mcache_getpages(
     if (!addr || addr == MAP_FAILED)
         return merr(EINVAL);
 
+    mblocksz = mblocksz_get(map, mbidx);
+
     for (i = 0; i < pagec; i++) {
         off_t off;
 
         off = pagenumv[i] * PAGE_SIZE;
-        if (off + PAGE_SIZE > MBLOCK_SIZE_BYTES)
+        if (off + PAGE_SIZE > mblocksz)
             return merr(EINVAL);
 
         addrv[i] = addr + off;

@@ -726,7 +726,6 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *cfile, const char *kvdb_name
 {
     struct hse_params  *hp = 0;
     char                buf[YAML_BUF_SIZE];
-    int                 rc;
     int                 count;
 
     struct yaml_context yc = {
@@ -744,8 +743,8 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *cfile, const char *kvdb_name
     if (!hp)
         return EX_USAGE;
 
-    rc = kvdb_list_print(kvdb_name, hp, &yc, (bool)verbosity, &count);
-    if (rc) {
+    count = kvdb_list_print(kvdb_name, hp, &yc, (bool)verbosity);
+    if (count < 0) {
         fprintf(stderr, "%s: unable to list KVDBs\n", cli->cmd->cmd_path);
         return -1;
     }
