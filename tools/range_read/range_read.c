@@ -452,6 +452,8 @@ main(
     const char         *mpool, *kvs;
     char                c;
     struct thread_info *ti = 0;
+    bool                freet = false;
+    void               *blens_base HSE_MAYBE_UNUSED = NULL;
 
     progname = basename(argv[0]);
     opts.vsep = ",";
@@ -467,6 +469,7 @@ main(
         switch (c) {
         case 'b':
             opts.blens = strdup(optarg);
+            blens_base = opts.blens;
             errmsg = "invalid burst lengths";
             break;
         case 'c':
@@ -508,6 +511,7 @@ main(
         case 'T':
             opts.tests = strdup(optarg);
             errmsg = "invalid tests";
+            freet = true;
             break;
         case 'V':
             opts.verify = true;
@@ -729,7 +733,9 @@ main(
     kh_fini();
 
     free(ti);
-    free(opts.blens);
+    free(blens_base);
+    if (freet)
+        free(opts.tests);
 
     hse_params_destroy(params);
 

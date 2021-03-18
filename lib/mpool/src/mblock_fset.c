@@ -188,7 +188,7 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp)
     if (!err) {
         mbfsp->fcnt = mh.fcnt;
         mbfsp->fszmax = (uint64_t)mh.fszmax_gb << 30;
-        mclass_mblocksz_set(mbfsp->mc, (uint32_t)mh.mblksz_mb << 20);
+        mclass_mblocksz_set(mbfsp->mc, (size_t)mh.mblksz_mb << 20);
     }
 
     if (unmap)

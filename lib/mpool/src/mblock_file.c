@@ -32,6 +32,8 @@
 
 #define MBLOCK_FILE_UNIQ_DELTA (1024)
 
+#define MBLOCK_MMAP_CHUNK_MAX (1)
+
 /**
  * struct mblock_rgn -
  * @rgn_node:  rb-tree linkage
@@ -798,6 +800,10 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
     omfwlen = omf_mblk_wlen(mbomf);
 
     if (!omf_isvalid(*mbidv, omfid, wlen, omfwlen, exists)) {
+        if (ev(exists && *mbidv != omfid)) {
+            assert(uniquifier(omfid) > uniquifier(*mbidv));
+            return merr(ENOENT);
+        }
         assert(0);
         return merr(EBUG);
     }
@@ -1006,7 +1012,7 @@ mblock_file_write(
 static __always_inline size_t
 mblock_mmap_csize(size_t mblocksz)
 {
-    return mblocksz;
+    return mblocksz * MBLOCK_MMAP_CHUNK_MAX;
 }
 
 static __always_inline uint64_t
