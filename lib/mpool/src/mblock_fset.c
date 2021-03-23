@@ -574,7 +574,8 @@ merr_t
 mblock_fset_map_getbase(
     struct mblock_fset *mbfsp,
     uint64_t            mbid,
-    char              **addr_out)
+    char              **addr_out,
+    uint32_t           *wlen)
 {
     struct mblock_file *mbfp;
 
@@ -583,7 +584,7 @@ mblock_fset_map_getbase(
 
     mbfp = mbfsp->filev[file_index(mbid)];
 
-    return mblock_file_map_getbase(mbfp, mbid, addr_out);
+    return mblock_file_map_getbase(mbfp, mbid, addr_out, wlen);
 }
 
 merr_t

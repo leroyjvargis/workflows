@@ -655,9 +655,6 @@ wbti5_reset(
     self->lfe_idx = 0;
     self->reverse = reverse;
 
-    if (cache)
-        kbr_madvise_wbt_leaf_nodes(kbd, desc, MADV_NORMAL);
-
     if (seek) {
         if (!wbti5_seek(self, seek))
             self->node_idx = NODE_EOF;

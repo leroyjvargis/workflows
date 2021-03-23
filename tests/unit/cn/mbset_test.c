@@ -551,7 +551,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_madvise, pre, post)
 
     /* This madvise will fail, but we'll get coverage...
      */
-    mbset_madvise(mbs, MADV_NORMAL);
+    mbset_madvise(mbs, MADV_WILLNEED);
 
     mbset_put_ref(mbs);
 

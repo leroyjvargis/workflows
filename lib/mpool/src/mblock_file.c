@@ -1049,7 +1049,8 @@ merr_t
 mblock_file_map_getbase(
     struct mblock_file *mbfp,
     uint64_t            mbid,
-    char              **addr_out)
+    char              **addr_out,
+    uint32_t           *wlen)
 {
     struct mblock_mmap *map;
     char *addr;
@@ -1098,8 +1099,10 @@ mblock_file_map_getbase(
 exit:
     mutex_unlock(&mbfp->mmap_lock);
 
-    if (!err)
-     *addr_out = addr + off;
+    if (!err) {
+        *addr_out = addr + off;
+        *wlen = atomic_read(mbfp->wlenv + block_id(mbid));
+    }
 
     return err;
 }

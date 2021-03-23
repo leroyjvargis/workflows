@@ -95,7 +95,8 @@ merr_t
 mblock_fset_map_getbase(
     struct mblock_fset *mbfsp,
     uint64_t            mbid,
-    char              **addr_out);
+    char              **addr_out,
+    uint32_t           *wlen);
 
 merr_t
 mblock_fset_unmap(

@@ -194,7 +194,8 @@ merr_t
 mblock_file_map_getbase(
     struct mblock_file *mbfp,
     uint64_t            mbid,
-    char              **addr_out);
+    char              **addr_out,
+    uint32_t           *wlen);
 
 merr_t
 mblock_file_unmap(

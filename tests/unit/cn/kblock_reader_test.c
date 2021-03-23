@@ -336,13 +336,13 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_bloom, pre)
 
     /* once w/ forced error */
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, EINVAL);
-    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_NORMAL);
+    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_WILLNEED);
 
     /* once w/o error */
-    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_NORMAL);
+    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_WILLNEED);
 
     blm_desc.bd_n_pages = 0;
-    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_NORMAL);
+    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_WILLNEED);
 
     err = mpool_mcache_munmap(blkdesc.map);
     ASSERT_EQ(err, 0);
@@ -376,13 +376,13 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_leaf_nodes, pre)
 
     /* once w/ forced error */
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, EINVAL);
-    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     /* once w/o error */
-    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     wb_desc.wbd_leaf_cnt = 0;
-    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     err = mpool_mcache_munmap(blkdesc.map);
     ASSERT_EQ(err, 0);
@@ -416,14 +416,14 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_int_nodes, pre)
 
     /* once w/ forced error */
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, EINVAL);
-    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     /* once w/o error */
-    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     wb_desc.wbd_n_pages = 0;
     wb_desc.wbd_leaf_cnt = 0;
-    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     err = mpool_mcache_munmap(blkdesc.map);
     ASSERT_EQ(err, 0);

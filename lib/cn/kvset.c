@@ -770,30 +770,22 @@ kvset_create2(
 
     if (ks->ks_node_level < ra_lev0(kra) || (!km->km_restored && ks->ks_node_level < ra_lev1(kra) &&
                                              kvdb_kalen * 100 < ra_pct(kra) * mavail)) {
-
-        kvset_madvise_kmaps(ks, MADV_NORMAL);
-
         if (ks->ks_node_level == 0 || (ra_willneed(kra) & 0x01))
             kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
     }
 
     if (ks->ks_node_level < ra_lev0(vra) || (!km->km_restored && ks->ks_node_level < ra_lev1(vra) &&
                                              kvdb_valen * 100 < ra_pct(vra) * mavail)) {
-
-        kvset_madvise_vmaps(ks, MADV_NORMAL);
-
         /* Disable cursor vblock readahead and direct mblock
          * reads for all vblocks in this kvset.
          */
-        ks->ks_vminlvl = U16_MAX;
-
         if (ra_willneed(vra) & 0x01) {
             kvset_madvise_vblks(ks, MADV_WILLNEED);
+            ks->ks_vminlvl = U16_MAX;
             ks->ks_vra_len = 0;
         } else if (cn_tree_is_capped(ks->ks_tree)) {
             kvset_madvise_capped(ks, MADV_WILLNEED);
-        } else {
-            ks->ks_vra_len = 0;
+            ks->ks_vminlvl = U16_MAX;
         }
     }
 
@@ -2815,9 +2807,7 @@ kvset_madvise_kmaps(struct kvset *ks, int advice)
     merr_t err;
     u64    mblock_max;
 
-    assert(
-        advice == MADV_NORMAL || advice == MADV_DONTNEED || advice == MADV_SEQUENTIAL ||
-        advice == MADV_RANDOM);
+    assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
     mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, MP_MED_CAPACITY);
 
@@ -2896,9 +2886,7 @@ kvset_madvise_vmaps(struct kvset *ks, int advice)
 {
     uint i;
 
-    assert(
-        advice == MADV_NORMAL || advice == MADV_DONTNEED || advice == MADV_SEQUENTIAL ||
-        advice == MADV_RANDOM);
+    assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
     for (i = 0; i < ks->ks_vbsetc; ++i)
         mbset_madvise(ks->ks_vbsetv[i], advice);

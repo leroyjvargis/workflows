@@ -41,10 +41,8 @@ mclass_lockfile_acq(int dirfd)
     int fd;
 
     fd = openat(dirfd, ".lockfile", O_CREAT | O_EXCL | O_SYNC, S_IRUSR | S_IWUSR);
-    if (ev(fd < 0)) {
-        assert(errno == EEXIST);
-        return merr(EBUSY);
-    }
+    if (ev(fd < 0))
+        return errno == EEXIST ? merr(EBUSY) : merr(errno);
 
     close(fd);
 

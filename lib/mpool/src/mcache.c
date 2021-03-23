@@ -26,6 +26,7 @@ struct mpool_mcache_map {
     size_t mbidc;
     void **addrv;
     uint64_t *mbidv;
+    uint32_t *wlenv;
 };
 
 merr_t
@@ -47,7 +48,7 @@ mpool_mcache_mmap(
 
     *mapp = NULL;
 
-    sz = sizeof(*map) + mbidc * (sizeof(*map->addrv) + sizeof(*map->mbidv));
+    sz = sizeof(*map) + mbidc * (sizeof(*map->addrv) + sizeof(*map->mbidv) + sizeof(*map->wlenv));
     map = calloc(1, sz);
     if (!map)
         return merr(ENOMEM);
@@ -55,10 +56,12 @@ mpool_mcache_mmap(
     map->mbidc = mbidc;
     map->addrv = (void *)(map + 1);
     map->mbidv = (void *)(map->addrv + mbidc);
+    map->wlenv = (void *)(map->mbidv + mbidc);
 
     for (i = 0; i < mbidc; i++) {
         enum mp_media_classp mclass;
         char                *addr;
+        uint32_t             wlen;
 
         mclass = mcid_to_mclass(mclassid(mbidv[i]));
         mc = mpool_mclass_handle(mp, mclass);
@@ -67,12 +70,13 @@ mpool_mcache_mmap(
             goto errout;
         }
 
-        err = mblock_fset_map_getbase(mclass_fset(mc), mbidv[i], &addr);
+        err = mblock_fset_map_getbase(mclass_fset(mc), mbidv[i], &addr, &wlen);
         if (ev(err))
             goto errout;
 
         map->addrv[i] = addr;
         map->mbidv[i] = mbidv[i];
+        map->wlenv[i] = wlen;
     }
     map->mp = mp;
 
@@ -116,34 +120,24 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
     return 0;
 }
 
-static size_t
-mblocksz_get(struct mpool_mcache_map *map, uint mbidx)
-{
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
-
-    mclass = mcid_to_mclass(mclassid(map->mbidv[mbidx]));
-    mc = mpool_mclass_handle(map->mp, mclass);
-
-    return mclass_mblocksz(mc);
-}
-
 merr_t
 mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t len, int advice)
 {
-    size_t count, mblocksz;
+    size_t   count;
+    uint32_t wlen;
 
     if (!map || mbidx >= map->mbidc || off < 0)
         return merr(EINVAL);
 
-    mblocksz = mblocksz_get(map, mbidx);
-    if (off >= mblocksz)
+    wlen = map->wlenv[mbidx];
+    if (off >= wlen)
         return merr(EINVAL);
 
     if (len == SIZE_MAX) {
         count = map->mbidc;
+        len = wlen - off;
     } else {
-        if (off + len > mblocksz)
+        if (off + len > wlen)
             return merr(EINVAL);
         count = mbidx + 1;
     }
@@ -156,14 +150,16 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
         if (!addr || addr == MAP_FAILED)
             return merr(EINVAL);
 
-        len = mblocksz - off;
-
         rc = madvise(addr + off, len, advice);
         if (rc)
             return merr(errno);
 
+        if (++mbidx >= count)
+            break;
+
         off = 0;
-    } while (++mbidx < count);
+        len = map->wlenv[mbidx];
+    } while (true);
 
     return 0;
 }
@@ -185,7 +181,6 @@ mpool_mcache_getpages(
     const off_t              pagenumv[],
     void                    *addrv[])
 {
-    size_t mblocksz;
     char *addr;
     int   i;
 
@@ -196,13 +191,11 @@ mpool_mcache_getpages(
     if (!addr || addr == MAP_FAILED)
         return merr(EINVAL);
 
-    mblocksz = mblocksz_get(map, mbidx);
-
     for (i = 0; i < pagec; i++) {
         off_t off;
 
         off = pagenumv[i] * PAGE_SIZE;
-        if (off + PAGE_SIZE > mblocksz)
+        if (off + PAGE_SIZE > map->wlenv[mbidx])
             return merr(EINVAL);
 
         addrv[i] = addr + off;
