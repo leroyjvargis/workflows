@@ -32,7 +32,7 @@
 
 #define MBLOCK_FILE_UNIQ_DELTA (1024)
 
-#define MBLOCK_MMAP_CHUNK_MAX (1)
+#define MBLOCK_MMAP_CHUNK_MAX (1024)
 
 /**
  * struct mblock_rgn -
