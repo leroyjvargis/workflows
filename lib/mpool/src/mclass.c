@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <fcntl.h>
 #include <ftw.h>
 
@@ -32,26 +33,44 @@ struct media_class {
     struct mblock_fset *mbfsp;
     size_t              mblocksz;
     enum mclass_id      mcid;
+    int                 lockfd;
     char                dpath[PATH_MAX];
 };
 
 static merr_t
-mclass_lockfile_acq(int dirfd)
+mclass_lockfile_acq(int dirfd, int *lockfd)
 {
-    int fd;
+    int    fd, rc;
+    merr_t err;
 
     fd = openat(dirfd, ".lockfile", O_CREAT | O_EXCL | O_SYNC, S_IRUSR | S_IWUSR);
-    if (ev(fd < 0))
-        return errno == EEXIST ? merr(EBUSY) : merr(errno);
+    if (fd < 0) {
+        if (errno != EEXIST)
+            return merr(errno);
 
-    close(fd);
+        /* Try to reopen file O_RDWR and acquire exclusive lock */
+        fd = openat(dirfd, ".lockfile", O_RDWR);
+        if (fd < 0)
+            return merr(errno);
+    }
+
+    rc = flock(fd, LOCK_EX | LOCK_NB);
+    if (rc) {
+        err = (errno == EWOULDBLOCK) ? merr(EBUSY) : merr(errno);
+        close(fd);
+        return err;
+    }
+
+    *lockfd = fd;
 
     return 0;
 }
 
 static void
-mclass_lockfile_rel(int dirfd)
+mclass_lockfile_rel(int dirfd, int lockfd)
 {
+    if (lockfd != -1)
+        flock(lockfd, LOCK_UN);
     unlinkat(dirfd, ".lockfile", 0);
 }
 
@@ -66,6 +85,7 @@ mclass_open(
     struct media_class *mc;
 
     DIR   *dirp;
+    int    lockfd = -1;
     merr_t err;
 
     if (ev(!mp || !params || !handle || mclass >= MP_MED_COUNT))
@@ -79,7 +99,7 @@ mclass_open(
     }
 
     if (mclass == MP_MED_CAPACITY) {
-        err = mclass_lockfile_acq(dirfd(dirp));
+        err = mclass_lockfile_acq(dirfd(dirp), &lockfd);
         if (ev(err)) {
             closedir(dirp);
             return err;
@@ -94,6 +114,7 @@ mclass_open(
 
     mc->dirp = dirp;
     mc->mcid = mclass_to_mcid(mclass);
+    mc->lockfd = lockfd;
 
     mc->mblocksz = powerof2(params->mblocksz) ? params->mblocksz : MBLOCK_SIZE_BYTES;
 
@@ -113,7 +134,8 @@ err_exit1:
     free(mc);
 
 err_exit2:
-    mclass_lockfile_rel(dirfd(dirp));
+    if (mclass == MP_MED_CAPACITY)
+        mclass_lockfile_rel(dirfd(dirp), lockfd);
     closedir(dirp);
 
     return err;
@@ -128,7 +150,7 @@ mclass_close(struct media_class *mc)
     mblock_fset_close(mc->mbfsp);
 
     if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
-        mclass_lockfile_rel(dirfd(mc->dirp));
+        mclass_lockfile_rel(dirfd(mc->dirp), mc->lockfd);
 
     closedir(mc->dirp);
 
@@ -146,7 +168,7 @@ mclass_destroy(struct media_class *mc)
     mblock_fset_remove(mc->mbfsp);
 
     if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
-        mclass_lockfile_rel(dirfd(mc->dirp));
+        mclass_lockfile_rel(dirfd(mc->dirp), mc->lockfd);
 
     closedir(mc->dirp);
 
