@@ -208,6 +208,7 @@ hse_kvdb_open(const char *kvdb_name, const struct hse_params *params, struct hse
     struct mpool *      mp;
     struct kvdb_rparams rparams;
     u64                 tstart;
+    int                 flags;
 
     if (HSE_UNLIKELY(!kvdb_name || !handle))
         return merr_to_hse_err(merr(EINVAL));
@@ -229,7 +230,9 @@ hse_kvdb_open(const char *kvdb_name, const struct hse_params *params, struct hse
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(kvdb_name, params, O_RDWR, &mp);
+
+    flags = rparams.read_only == 0 ? O_RDWR : O_RDONLY;
+    err = mpool_open(kvdb_name, params, flags, &mp);
     if (ev(err))
         return merr_to_hse_err(err);
 

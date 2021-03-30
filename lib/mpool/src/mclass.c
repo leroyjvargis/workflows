@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -48,7 +46,11 @@ mclass_lockfile_acq(int dirfd, int *lockfd)
         if (errno != EEXIST)
             return merr(errno);
 
-        /* Try to reopen file O_RDWR and acquire exclusive lock */
+        /*
+         * Try to reopen file O_RDWR and acquire exclusive lock.
+         * If the lock acquisition succeeds, then it's likely
+         * that the prior instance crashed.
+         */
         fd = openat(dirfd, ".lockfile", O_RDWR);
         if (fd < 0)
             return merr(errno);
@@ -69,8 +71,10 @@ mclass_lockfile_acq(int dirfd, int *lockfd)
 static void
 mclass_lockfile_rel(int dirfd, int lockfd)
 {
-    if (lockfd != -1)
+    if (lockfd != -1) {
         flock(lockfd, LOCK_UN);
+        close(lockfd);
+    }
     unlinkat(dirfd, ".lockfile", 0);
 }
 

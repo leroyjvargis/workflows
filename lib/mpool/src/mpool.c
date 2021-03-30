@@ -6,6 +6,7 @@
 #define MTF_MOCK_IMPL_mpool
 
 #include <stdlib.h>
+#include <fcntl.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
@@ -54,7 +55,7 @@ static const char *param_key[PARAM_MAX][MP_MED_COUNT] =
 };
 
 static merr_t
-mclass_params_init(enum mp_media_classp mclass, struct mclass_params *mparams)
+mclass_params_init(enum mp_media_classp mclass, struct mclass_params *mcp)
 {
     char *path;
 
@@ -62,52 +63,52 @@ mclass_params_init(enum mp_media_classp mclass, struct mclass_params *mparams)
     if (path) {
         size_t n;
 
-        n = strlcpy(mparams->path, path, sizeof(mparams->path));
-        if (n >= sizeof(mparams->path))
+        n = strlcpy(mcp->path, path, sizeof(mcp->path));
+        if (n >= sizeof(mcp->path))
             return merr(EINVAL);
     }
 
-    mparams->mblocksz = MBLOCK_SIZE_BYTES;
-    mparams->filecnt = MBLOCK_FSET_FILES_DEFAULT;
-    mparams->fszmax = MBLOCK_FILE_SIZE_MAX;
+    mcp->mblocksz = MBLOCK_SIZE_BYTES;
+    mcp->filecnt = MBLOCK_FSET_FILES_DEFAULT;
+    mcp->fszmax = MBLOCK_FILE_SIZE_MAX;
 
     return 0;
 }
 
 static merr_t
 hse_to_mclass_params(
-    const struct hse_params *hparams,
+    const struct hse_params *params,
     enum mp_media_classp     mclass,
-    struct mclass_params    *mparams)
+    struct mclass_params    *mcp)
 {
     char buf[PATH_MAX];
 
-    if (!hparams)
+    if (!params)
         return 0;
 
-    if (hse_params_get(hparams, param_key[PARAM_PATH][mclass], buf, sizeof(buf), NULL) &&
+    if (hse_params_get(params, param_key[PARAM_PATH][mclass], buf, sizeof(buf), NULL) &&
         buf[0] != '\0') {
         size_t n;
 
-        n = strlcpy(mparams->path, buf, sizeof(mparams->path));
-        if (n >= sizeof(mparams->path))
+        n = strlcpy(mcp->path, buf, sizeof(mcp->path));
+        if (n >= sizeof(mcp->path))
             return merr(EINVAL);
     }
 
-    if (hse_params_get(hparams, param_key[PARAM_OBJSZ][mclass], buf, sizeof(buf), NULL) &&
+    if (hse_params_get(params, param_key[PARAM_OBJSZ][mclass], buf, sizeof(buf), NULL) &&
         buf[0] != '\0') {
-        mparams->mblocksz = atoi(buf);
-        mparams->mblocksz <<= 20;
+        mcp->mblocksz = atoi(buf);
+        mcp->mblocksz <<= 20;
     }
 
-    if (hse_params_get(hparams, param_key[PARAM_FCNT][mclass], buf, sizeof(buf), NULL) &&
+    if (hse_params_get(params, param_key[PARAM_FCNT][mclass], buf, sizeof(buf), NULL) &&
         buf[0] != '\0')
-        mparams->filecnt = atoi(buf);
+        mcp->filecnt = atoi(buf);
 
-    if (hse_params_get(hparams, param_key[PARAM_FSIZE][mclass], buf, sizeof(buf), NULL) &&
+    if (hse_params_get(params, param_key[PARAM_FSIZE][mclass], buf, sizeof(buf), NULL) &&
         buf[0] != '\0') {
-        mparams->fszmax = atoi(buf);
-        mparams->fszmax <<= 30;
+        mcp->fszmax = atoi(buf);
+        mcp->fszmax <<= 30;
     }
 
     return 0;
@@ -131,27 +132,38 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
 
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        struct mclass_params mparams = {};
+        struct mclass_params mcp = {};
 
-        err = mclass_params_init(i, &mparams);
+        err = mclass_params_init(i, &mcp);
         if (err)
             goto errout;
 
-        err = hse_to_mclass_params(params, i, &mparams);
+        err = hse_to_mclass_params(params, i, &mcp);
         if (err)
             goto errout;
 
-        if (mparams.path[0] != '\0') {
-            err = mclass_open(mp, i, &mparams, flags, &mp->mc[i]);
+        if (mcp.path[0] != '\0') {
+            err = mclass_open(mp, i, &mcp, flags, &mp->mc[i]);
             if (ev(err)) {
                 hse_log(
-                    HSE_ERR "%s: Malformed storage path for mclass %d", __func__, i);
+                    HSE_ERR "%s: Storage path busy or malformed for mclass %d", __func__, i);
                 goto errout;
             }
         } else if (i == MP_MED_CAPACITY) {
             err = merr(EINVAL);
             hse_log(HSE_ERR "%s: storage path not set for %s", __func__, name);
             goto errout;
+        }
+
+        for (int j = i - 1; j >= 0; j--) {
+            if (mp->mc[i] && mp->mc[j] &&
+                !strcmp(mclass_dpath(mp->mc[i]), mclass_dpath(mp->mc[j]))) {
+                err = merr(EINVAL);
+                hse_log(HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
+                        __func__, i, j);
+                i++; /* for cleanup */
+                goto errout;
+            }
         }
     }
 
@@ -166,8 +178,12 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     return 0;
 
 errout:
-    while (i-- > MP_MED_BASE)
-        mclass_close(mp->mc[i]);
+    while (i-- > MP_MED_BASE) {
+        if (flags & O_CREAT)
+            mclass_destroy(mp->mc[i]);
+        else
+            mclass_close(mp->mc[i]);
+    }
 
     free(mp);
 

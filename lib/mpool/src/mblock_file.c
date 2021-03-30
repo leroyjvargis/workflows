@@ -3,10 +3,9 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdalign.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -124,7 +123,7 @@ mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
 
     uint32_t rmax;
 
-    rmcache = kmem_cache_create(name, sizeof(*rgn), __alignof(*rgn), 0, NULL);
+    rmcache = kmem_cache_create(name, sizeof(*rgn), alignof(*rgn), 0, NULL);
     if (ev(!rmcache))
         return merr(ENOMEM);
 

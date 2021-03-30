@@ -47,29 +47,6 @@ MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_testcase)
     ASSERT_EQ(hse_err_to_errno(rc), EEXIST);
 }
 
-MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_no_mpool_testcase)
-{
-    hse_err_t rc;
-
-    // TC: A KVDB cannot be created on a non-existing MPOOL
-    rc = hse_kvdb_make("fake_mpool", NULL);
-    ASSERT_EQ(hse_err_to_errno(rc), ENOENT);
-}
-
-MTF_DEFINE_UTEST(kvdb_api_test, kvdb_handle_no_mpool_testcase)
-{
-    struct hse_kvdb *kvdb_handle = NULL;
-    hse_err_t        rc;
-
-    // TC: A non-existing KVDB cannot be opened
-    rc = hse_kvdb_open("fake_mpool", NULL, &kvdb_handle);
-    ASSERT_EQ(hse_err_to_errno(rc), ENOENT);
-
-    // TC: A non-existing KVDB cannot be closed
-    rc = hse_kvdb_close(kvdb_handle);
-    ASSERT_EQ(hse_err_to_errno(rc), EINVAL);
-}
-
 MTF_DEFINE_UTEST(kvdb_api_test, kvdb_valid_testcase)
 {
     struct hse_kvdb *kvdb_handle;
