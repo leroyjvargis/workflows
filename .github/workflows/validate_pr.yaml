@@ -40,13 +40,17 @@ jobs:
                 - name: Build setup with YCSB, tools and configs
                   run: |
                           echo "BUILD=${{ matrix.build_type }}"
+                          source venv/bin/activate
                           meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
 
                 - name: Clang format check
                   continue-on-error: true
-                  run: meson -C builddir format-check
+                  run: |
+                          source venv/bin/activate
+                          meson -C builddir format-check
 
                 - name: Run Unit tests
                   run: |
+                          source venv/bin/activate
                           meson test -C builddir --print-errorlogs --no-stdsplit
 
