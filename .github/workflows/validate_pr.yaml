@@ -14,8 +14,7 @@ jobs:
                 steps:
                 - uses: actions/checkout@v2
                   with:
-                          repository: 'bhaveshvasandani/PortfolioMgmt'
-                          ref: 'adding-travis-slack'
+                          ref: 'libmpool'
 
         build:
                 runs-on: ${{ matrix.os }}
@@ -29,11 +28,24 @@ jobs:
                 steps:
                 - uses: actions/checkout@v2
                   with:
-                          repository: 'bhaveshvasandani/PortfolioMgmt'
-                          ref: 'adding-travis-slack'
+                          ref: 'libmpool'
+                - name: setup python environment to run branch
+                  run: |
+                          python3 -m venv venv
+                          source venv/bin/activate
+                          pip3 install -r requirements.txt
+                          pip3 install meson ninja
+
                 - name: Build Default with YCSB, tools and configs
                   run: |
                           echo "BUILD=${{ matrix.build_type }}"
+                          meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
 
+                - name: Lint format
+                  continue-on-error: true
+                  run: meson -C builddir format-check
 
+                - name: Run Unit tests
+                  run: |
+                          meson test -C builddir --print-errorlogs --no-stdsplit
 
