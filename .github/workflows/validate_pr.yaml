@@ -20,7 +20,7 @@ jobs:
         build:
                 runs-on: ${{ matrix.os }}
                 needs: [branch-check]
-                statergy:
+                strategy:
                         fail-fast: true
                         matrix:
                                 os: [ubuntu-18.04]
