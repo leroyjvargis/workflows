@@ -29,19 +29,19 @@ jobs:
                 - uses: actions/checkout@v2
                   with:
                           ref: 'libmpool'
-                - name: setup python environment to run branch
+                - name: Setup python environment to run branch
                   run: |
-                          python3 -m venv venv
+                          python -m venv venv
                           source venv/bin/activate
                           pip3 install -r requirements.txt
                           pip3 install meson ninja
 
-                - name: Build Default with YCSB, tools and configs
+                - name: Build setup with YCSB, tools and configs
                   run: |
                           echo "BUILD=${{ matrix.build_type }}"
                           meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
 
-                - name: Lint format
+                - name: Clang format check
                   continue-on-error: true
                   run: meson -C builddir format-check
 
