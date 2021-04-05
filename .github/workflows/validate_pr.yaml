@@ -1,0 +1,39 @@
+name: Validate PR
+
+on:
+        push:
+        pull_request:
+                types: [opened, synchronize, reopened, edited]
+
+jobs:
+        branch-check:
+                runs-on: ubuntu-18.04
+
+                continue-on-error: true
+
+                steps:
+                - uses: actions/checkout@v2
+                  with:
+                          repository: 'bhaveshvasandani/PortfolioMgmt'
+                          ref: 'adding-travis-slack'
+
+        build:
+                runs-on: ${{ matrix.os }}
+                needs: [branch-check]
+                statergy:
+                        fail-fast: true
+                        matrix:
+                                os: [ubuntu-18.04]
+                                build_type: [release, debugoptimized, debug]
+
+                steps:
+                - uses: actions/checkout@v2
+                  with:
+                          repository: 'bhaveshvasandani/PortfolioMgmt'
+                          ref: 'adding-travis-slack'
+                - name: Build Default with YCSB, tools and configs
+                  run: |
+                          echo "BUILD=${{ matrix.build_type }}"
+
+
+
