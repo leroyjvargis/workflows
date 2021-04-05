@@ -394,10 +394,13 @@ mblock_fset_close(struct mblock_fset *mbfsp)
 static int
 mblock_fset_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-    if (strstr(path, MBLOCK_DATA_FILE_PFX))
-        return remove(path);
+    if (typeflag == FTW_D && ftwbuf->level > 0)
+        return FTW_SKIP_SUBTREE;
 
-    return 0;
+    if (strstr(path, MBLOCK_DATA_FILE_PFX))
+        remove(path);
+
+    return FTW_CONTINUE;
 }
 
 void
@@ -413,7 +416,7 @@ mblock_fset_remove(struct mblock_fset *mbfsp)
 
     mblock_fset_close(mbfsp);
 
-    nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_MAX, FTW_DEPTH | FTW_PHYS);
+    nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 
     mblock_fset_meta_remove(dirfd, name);
 }

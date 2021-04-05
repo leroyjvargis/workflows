@@ -739,7 +739,7 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *cfile, const char *kvdb_name
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", "kvdb.rdonly=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", "kvdb.read_only=1", 0);
     if (!hp)
         return EX_USAGE;
 

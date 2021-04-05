@@ -143,12 +143,27 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
             goto errout;
 
         if (mcp.path[0] != '\0') {
-            err = mclass_open(mp, i, &mcp, flags, &mp->mc[i]);
-            if (ev(err)) {
-                hse_log(
-                    HSE_ERR "%s: Storage path busy or malformed for mclass %d", __func__, i);
-                goto errout;
-            }
+            int flags2 = 0;
+
+            do {
+                err = mclass_open(mp, i, &mcp, flags | flags2, &mp->mc[i]);
+                if (err) {
+                    if (i != MP_MED_CAPACITY && merr_errno(err) == ENOENT && !(flags2 & O_CREAT)) {
+                        err = 0;
+                        if (flags & O_RDWR) {
+                            flags2 = O_CREAT;
+                            continue;
+                        }
+                    }
+
+                    if (err) {
+                        hse_log(HSE_ERR "%s: Storage path busy or malformed for mclass %d",
+                                __func__, i);
+                        goto errout;
+                    }
+                }
+                break;
+            } while (true);
         } else if (i == MP_MED_CAPACITY) {
             err = merr(EINVAL);
             hse_log(HSE_ERR "%s: storage path not set for %s", __func__, name);
