@@ -20,12 +20,15 @@ jobs:
                 runs-on: ${{ matrix.os }}
                 needs: [branch-check]
                 strategy:
-                        fail-fast: true
+                        fail-fast: false
                         matrix:
                                 os: [ubuntu-18.04]
                                 build_type: [release, debugoptimized, debug]
 
                 steps:
+                - name: Install dependencies
+                  run: |
+                          sudo apt-get install build-essential libblkid-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl
                 - uses: actions/checkout@v2
                   with:
                           ref: 'libmpool'
