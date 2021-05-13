@@ -3,28 +3,38 @@ name: Bug report
 about: Create a bug report to help us improve our project
 ---
 
-<!--- Thank you for opening an issue. Please be sure to review our [Contribution guidelines](CONTRIBUTING.md) and be sure to adhere to our [Code of conduct](CODE_OF_CONDUCT.md) when interacting with the community. --->
+<!--- Thank you for opening an issue. Please be sure to review our [Contribution guidelines](CONTRIBUTING.md). -->
+<!--- New features should be discussed on Github discussions(https://github.com/hse-project/hse/discussions). -->
 
 ## Description of the issue
 
-<!-- A clear and concise description of what the bug is. -->
+<!--- A clear and concise description of what the bug is. -->
 
 ### Steps to reproduce
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll to '....'
-4. Check console
-5. See error
+<!--- Provide a link to a live example, or an unambiguous set of steps to -->
+<!--- reproduce this bug. Include code to reproduce, if relevant. -->
+1. 
+2. 
+3. 
+4. 
 
 ### Expected behavior
 
-<!-- A clear and concise description of what you expected to happen. -->
+<!--- A clear and concise description of what you expected to happen. -->
 
-### Screenshots
+## Current Behavior
 
-<!-- If applicable, add screenshots to help demonstrate the issue. -->
+<!--- Tell us what happens instead of the expected behavior. -->
+
+## Possible Solution
+
+<!--- Not obligatory, but suggest a fix/reason for the bug. -->
+
+## Context (Environment)
+
+<!--- How has this issue affected you? What are you trying to accomplish? -->
+<!--- Providing context helps us come up with a solution that is most useful in the real world. -->
 
 ## Related issues
 
-- (#100) Description
