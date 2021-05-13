@@ -11,6 +11,5 @@ about: Describe the feature you would like added
 <!--- A clear and concise description of the feature being requested. -->
 
 
-## Related issues
+### Related issues
 
-- (#100) Description
