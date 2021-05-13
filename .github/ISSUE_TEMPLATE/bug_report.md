@@ -23,18 +23,18 @@ about: Create a bug report to help us improve our project
 
 <!--- A clear and concise description of what you expected to happen. -->
 
-## Current Behavior
+### Current Behavior
 
 <!--- Tell us what happens instead of the expected behavior. -->
 
-## Possible Solution
+### Possible Solution
 
 <!--- Not obligatory, but suggest a fix/reason for the bug. -->
 
-## Context (Environment)
+### Context (Environment)
 
 <!--- How has this issue affected you? What are you trying to accomplish? -->
 <!--- Providing context helps us come up with a solution that is most useful in the real world. -->
 
-## Related issues
+### Related issues
 
