@@ -1,2 +1,2 @@
-# workflows
-Test the github action workflow for automation PR processes
+# Workflows
+Test the Github Action workflow for automation PR processes.
