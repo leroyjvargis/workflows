@@ -1,4 +1,4 @@
-name: Validate PR
+name: Validate Builds
 
 on:
         push:
@@ -6,19 +6,8 @@ on:
                 types: [opened, synchronize, reopened, edited]
 
 jobs:
-        branch-check:
-                runs-on: ubuntu-18.04
-
-                continue-on-error: true
-
-                steps:
-                - uses: actions/checkout@v2
-                  with:
-                          ref: 'libmpool'
-
         build:
                 runs-on: ${{ matrix.os }}
-                needs: [branch-check]
                 strategy:
                         fail-fast: false
                         matrix:
@@ -29,33 +18,31 @@ jobs:
                 - name: Install dependencies
                   run: |
                           sudo apt-get install build-essential libblkid-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl
+                          python3 -m pip install --user pipx
+                          pipx install poetry
                 - uses: actions/checkout@v2
                   with:
-                          ref: 'libmpool'
+                          ref: 'hsemaster'
                 - name: Setup python environment to run branch
                   run: |
-                          python3 -m venv venv
-                          source venv/bin/activate
-                          pip3 install wheel
-                          pip3 install -r requirements.txt
-                          pip3 install meson ninja
+                          poetry install
 
                 - name: Build setup with YCSB, tools and configs
                   run: |
                           sed -i.bak "s,ssh://git@bitbucket.micron.com/hse/hse-python.git,https://${{ secrets.GH_TOKEN }}@github.com/bhaveshvasandani/hse-python.git,g" subprojects/hse-python.wrap
                           echo "BUILD=${{ matrix.build_type }}"
-                          source venv/bin/activate
-                          meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+                          poetry shell
+                          meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
 
                 - name: Clang format check
                   continue-on-error: true
                   run: |
-                          source venv/bin/activate
+                          poetry shell
                           meson -C builddir format-check
 
                 - name: Run Unit tests
                   continue-on-error: true
                   run: |
-                          source venv/bin/activate
-                          meson test -C builddir --print-errorlogs --no-stdsplit
+                          poetry shell
+                          meson test -C builddir --no-suite smoke --no-suite long --print-errorlogs --no-stdsplit
 
