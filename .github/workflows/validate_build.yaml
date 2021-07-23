@@ -35,11 +35,10 @@ jobs:
                           df -h
                           poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
 
-                - name: Archive build artifacts
-                  uses: actions/upload-artifact@v2
-                    with:
-                      name: build-artifact
-                      path: builddir/
+                - uses: actions/upload-artifact@v2
+                  with:
+                    name: build-artifact
+                    path: builddir/
 
                 - name: Clang format check
                   continue-on-error: true
