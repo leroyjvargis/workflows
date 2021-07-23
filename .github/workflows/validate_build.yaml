@@ -22,7 +22,7 @@ jobs:
                           python3 -m pip install --user poetry
                 - uses: actions/checkout@v2
                   with:
-                          ref: 'hsemaster'
+                          ref: 'updates/NFSE-4842-add-ci-testsetup'
                 - name: Setup python environment to run branch
                   run: |
                           poetry install
@@ -36,6 +36,7 @@ jobs:
                           poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
 
                 - uses: actions/upload-artifact@v2
+                  if: always()
                   with:
                     name: build-artifact
                     path: builddir/
