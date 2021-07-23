@@ -31,20 +31,17 @@ jobs:
                   run: |
                           sed -i.bak "s,ssh://git@bitbucket.micron.com/hse/hse-python.git,https://${{ secrets.GH_TOKEN }}@github.com/bhaveshvasandani/hse-python.git,g" subprojects/hse-python.wrap
                           echo "BUILD=${{ matrix.build_type }}"
-                          poetry shell
                           lsblk
                           df -h
-                          meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
+                          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
 
                 - name: Clang format check
                   continue-on-error: true
                   run: |
-                          poetry shell
-                          meson -C builddir format-check
+                          poetry run meson -C builddir format-check
 
                 - name: Run Unit tests
                   continue-on-error: true
                   run: |
-                          poetry shell
-                          meson test -C builddir --no-suite smoke --no-suite long --print-errorlogs --no-stdsplit
+                          poetry run meson test -C builddir --no-suite smoke --no-suite long --print-errorlogs --no-stdsplit
 
