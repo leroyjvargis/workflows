@@ -17,7 +17,8 @@ jobs:
                 steps:
                 - name: Install dependencies
                   run: |
-                          sudo apt-get install build-essential libblkid-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl python3-setuptools libmongoc-1.0-0
+                          sudo apt-get install build-essential libblkid-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl python3-setuptools
+                          sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
                           python3 -m pip install --user setuptools_rust wheel
                           python3 -m pip install --user poetry
                 - uses: actions/checkout@v2
