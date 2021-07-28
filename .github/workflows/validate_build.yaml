@@ -38,22 +38,19 @@ jobs:
                           df -h
                           poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
 
-                - uses: actions/upload-artifact@v2
-                  if: always()
-                  with:
-                    name: build-artifact
-                    path: builddir/
-
                 - name: Clang format check
                   continue-on-error: true
                   run: |
                           poetry run meson -C builddir format-check
 
                 - name: Run Unit tests
-                  continue-on-error: true
                   run: |
-                          ls -l /bin/sh
-                          which bash
-                          which dash
                           poetry run meson test -C builddir --suite unit --print-errorlogs --no-stdsplit
+
+
+                - uses: actions/upload-artifact@v2
+                  if: failure()
+                  with:
+                    name: build-artifact
+                    path: builddir/meson-logs/
 
