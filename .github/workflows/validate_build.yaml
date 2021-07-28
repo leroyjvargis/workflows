@@ -52,5 +52,5 @@ jobs:
                 - name: Run Unit tests
                   continue-on-error: true
                   run: |
-                          poetry run meson test -C builddir --no-suite smoke --no-suite long --print-errorlogs --no-stdsplit
+                          poetry run meson test -C builddir --suite unit --print-errorlogs --no-stdsplit
 
