@@ -24,7 +24,7 @@ jobs:
                           python3 -m pip install --user poetry
                 - uses: actions/checkout@v2
                   with:
-                          ref: 'updates/NFSE-4842-add-ci-testsetup'
+                          ref: 'hsemaster'
                 - name: Setup python environment to run branch
                   run: |
                           poetry install
