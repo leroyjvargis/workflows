@@ -30,7 +30,6 @@ jobs:
                 - name: Setup python environment to run branch
                   run: |
                           poetry install
-                          poetry update meson
 
                 - name: Build setup with YCSB, tools and configs
                   run: |
@@ -43,7 +42,7 @@ jobs:
                 - name: Clang format check
                   continue-on-error: true
                   run: |
-                          poetry run meson -C builddir format-check
+                          poetry run ninja -C builddir format-check
 
                 - name: Run tests
                   run: |
@@ -53,7 +52,7 @@ jobs:
                 - uses: actions/upload-artifact@v2
                   if: failure()
                   with:
-                    name: build-artifact
+                    name: build-artifact-ubuntu
                     path: builddir/meson-logs/
 
         build_fedora:
@@ -82,7 +81,7 @@ jobs:
                 - name: Setup python environment to run branch
                   run: |
                           python3 -m poetry install
-                          python3 -m poetry update meson
+
                 - name: Build setup with YCSB, tools and configs
                   run: |
                           sed -i.bak "s,ssh://git@bitbucket.micron.com/hse/hse-python.git,https://${{ secrets.GH_TOKEN }}@github.com/bhaveshvasandani/hse-python.git,g" subprojects/hse-python.wrap
@@ -94,7 +93,7 @@ jobs:
                 - name: Clang format check
                   continue-on-error: true
                   run: |
-                          python3 -m poetry run meson -C builddir format-check
+                          python3 -m poetry run ninja -C builddir format-check
 
                 - name: Run tests
                   run: |
@@ -104,5 +103,5 @@ jobs:
                 - uses: actions/upload-artifact@v2
                   if: failure()
                   with:
-                    name: build-artifact
+                    name: build-artifact-fedora
                     path: builddir/meson-logs/
