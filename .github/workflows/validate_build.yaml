@@ -84,8 +84,8 @@ jobs:
 
                 - name: Setup python environment to run branch
                   run: |
-                          poetry install
-                          poetry update meson
+                          python3 -m poetry install
+                          python3 -m poetry update meson
 
                 - name: Create tests-dir
                   run: |
@@ -96,16 +96,16 @@ jobs:
                           echo "BUILD=${{ matrix.build_type }}"
                           lsblk
                           df -h
-                          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=true -Dtests-dir=/home/runner/hse/test_kvdb
+                          python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=true -Dtests-dir=/home/runner/hse/test_kvdb
 
                 - name: Clang format check
                   continue-on-error: true
                   run: |
-                          poetry run meson -C builddir format-check
+                          python3 -m poetry run meson -C builddir format-check
 
                 - name: Run tests
                   run: |
-                          poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+                          python3 -m poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
 
                 - uses: actions/upload-artifact@v2
