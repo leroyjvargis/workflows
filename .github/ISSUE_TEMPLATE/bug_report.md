@@ -14,11 +14,7 @@ about: Create a bug report to help us improve our project
 1. Build and install from master
 2. Configure your system
 3. Run some commands
-5. See error in logs
-
-### Screenshots
-
-<!-- If applicable, add screenshots to help demonstrate the issue. -->
+4. See error in logs
 
 #### Related issues
 
