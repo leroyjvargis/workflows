@@ -1,10 +1,12 @@
-#### What is this PR About?
-Describe the contents of the PR
+#### Issue Addressed
+<!-- Issue number -->
 
-#### How do we test this?
-Provide commands/steps to test this PR.
+#### What is this PR About?
+<!-- Describe the changes in this PR and add any information helpful for reviewing. -->
 
 #### Verified checks?
 Have the checks completed?
-1. branch check
-2. Validate PR check
+- [ ] All new and existing unit and functional tests pass
+- [ ] Checkoss pass
+- [ ] Code format check pass
+- [ ] All Commits are signed off
