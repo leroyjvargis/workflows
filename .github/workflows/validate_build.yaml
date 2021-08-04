@@ -73,7 +73,7 @@ jobs:
                 - name: Install dependencies
                   run: |
                           sudo dnf install -y which git libblkid-devel gettext autoconf bison libtool pkg-config java-11-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel
-                          sudo dnf install -y xz-devel libbsd-devel curl mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+                          sudo dnf install -y xz xz-libs xz-devel libbsd-devel curl mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
                           sudo dnf install -y python-pip python-wheel python3-devel
                           sudo dnf upgrade -y python-setuptools
                           python3 -m pip install --user setuptools_rust wheel
@@ -86,17 +86,13 @@ jobs:
                   run: |
                           python3 -m poetry install
                           python3 -m poetry update meson
-
-                - name: Create tests-dir
-                  run: |
-                          mkdir -p /home/runner/hse/test_kvdb
                 - name: Build setup with YCSB, tools and configs
                   run: |
                           sed -i.bak "s,ssh://git@bitbucket.micron.com/hse/hse-python.git,https://${{ secrets.GH_TOKEN }}@github.com/bhaveshvasandani/hse-python.git,g" subprojects/hse-python.wrap
                           echo "BUILD=${{ matrix.build_type }}"
                           lsblk
                           df -h
-                          python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=true -Dtests-dir=/home/runner/hse/test_kvdb
+                          python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
 
                 - name: Clang format check
                   continue-on-error: true
