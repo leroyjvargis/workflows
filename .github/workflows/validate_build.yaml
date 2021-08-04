@@ -12,40 +12,45 @@ jobs:
                         fail-fast: false
                         matrix:
                                 os: [ubuntu-18.04]
-                                build_type: [release, debugoptimized, debug]
+                                build_type: [release, debugoptimized]
 
                 steps:
                 - name: Install dependencies
                   run: |
-                          sudo apt-get install build-essential libblkid-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl python3-setuptools
+                          sudo apt-get update
+                          sudo apt-get install build-essential libblkid-dev libbsd-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl python3-setuptools
                           dpkg -l | grep curl
                           sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
                           python3 -m pip install --user setuptools_rust wheel
                           python3 -m pip install --user poetry
                 - uses: actions/checkout@v2
                   with:
-                          ref: 'hsemaster'
+                          ref: 'fixes/NFSE-4871-test-failures'
+
                 - name: Setup python environment to run branch
                   run: |
                           poetry install
                           poetry update meson
 
+                - name: Create tests-dir
+                  run: |
+                          mkdir -p /home/runner/hse/test_kvdb
                 - name: Build setup with YCSB, tools and configs
                   run: |
                           sed -i.bak "s,ssh://git@bitbucket.micron.com/hse/hse-python.git,https://${{ secrets.GH_TOKEN }}@github.com/bhaveshvasandani/hse-python.git,g" subprojects/hse-python.wrap
                           echo "BUILD=${{ matrix.build_type }}"
                           lsblk
                           df -h
-                          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all
+                          poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true -Dtests=all -Dtests-dir=/home/runner/hse/test_kvdb
 
                 - name: Clang format check
                   continue-on-error: true
                   run: |
                           poetry run meson -C builddir format-check
 
-                - name: Run Unit tests
+                - name: Run tests
                   run: |
-                          poetry run meson test -C builddir --suite unit --print-errorlogs --no-stdsplit
+                          poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
 
                 - uses: actions/upload-artifact@v2
@@ -53,4 +58,3 @@ jobs:
                   with:
                     name: build-artifact
                     path: builddir/meson-logs/
-
