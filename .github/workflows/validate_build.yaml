@@ -73,7 +73,7 @@ jobs:
                 - name: Install dependencies
                   run: |
                           sudo dnf install -y git libblkid-devel gettext autoconf bison libtool pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel
-                          sudo dnf install -y libbsd-devel curl mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses cmake make automake gcc gcc-c++ kernel-devel
+                          sudo dnf install -y libbsd-devel curl mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
                           sudo dnf install -y python-pip python-wheel python3-devel
                           sudo dnf upgrade -y python-setuptools
                           python3 -m pip install --user setuptools_rust wheel
