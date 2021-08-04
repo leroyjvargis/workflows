@@ -64,11 +64,15 @@ jobs:
                 container:
                         image: fedora:latest
                         options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
+                strategy:
+                        fail-fast: false
+                        matrix:
+                                build_type: [release, debugoptimized]
 
                 steps:
                 - name: Install dependencies
                   run: |
-                          sudo dnf install -y libblkid-devel gettext autoconf bison libtool pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-dev lz4-devel
+                          sudo dnf install -y libblkid-devel gettext autoconf bison libtool pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel
                           dpkg -l | grep curl
                           sudo dnf install -y install libbsd-devel curl mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses cmake make automake gcc gcc-c++ kernel-devel
                           sudo dnf install -y python-pip python-wheel python3-devel
