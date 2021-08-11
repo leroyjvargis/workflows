@@ -44,6 +44,7 @@ foreach t, params : tests
         timeout: 3600,
         env: environment({
             'HSE_TEST_RUNNER_RUNNER': 'python',
-        })
+        }),
+        is_parallel: false,
     )
 endforeach
