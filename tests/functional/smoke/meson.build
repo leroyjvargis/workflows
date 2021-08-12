@@ -273,6 +273,7 @@ foreach t, params : tests
         ],
         env: environment({
             'HSE_TEST_RUNNER_RUNNER': 'bash',
+            'MESON_TESTTHREADS': 1
         })
     )
 endforeach
