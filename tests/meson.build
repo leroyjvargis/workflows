@@ -49,7 +49,7 @@ if in_ci
 endif
 
 add_test_setup(
-    'ci-nightly',
+    'cinightly',
     env: run_env,
     is_default: false,
     exclude_suites: ['unit', 'api'] + additional_suite_exclusions,
