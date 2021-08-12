@@ -44,6 +44,16 @@ add_test_setup(
     exclude_suites: ['long', 'smoke', 'non-deterministic', 'stress', 'stress_large'] + additional_suite_exclusions,
 )
 
+if in_ci
+    run_env.append('MESON_TESTTHREADS', 1)
+
+add_test_setup(
+    'ci-nightly',
+    env: run_env,
+    is_default: false,
+    exclude_suites: ['unit', 'api'] + additional_suite_exclusions,
+)
+
 subdir('unit')
 subdir('functional')
 subdir('stress')
