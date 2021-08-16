@@ -33,7 +33,7 @@ jobs:
 
     - name: Run tests
       run: |
-              poetry run meson test -C builddir --suite=long --suite=smoke --num-processes=1 --print-errorlogs --no-stdsplit
+              poetry run meson test -C builddir --suite=long --suite=smoke --suite=stress --num-processes=1 --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
