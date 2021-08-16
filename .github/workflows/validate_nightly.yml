@@ -33,7 +33,7 @@ jobs:
 
     - name: Run tests
       run: |
-              poetry run meson test -C builddir --suite=long --suite=smoke --suite=stress --num-processes=1 --print-errorlogs --no-stdsplit
+              poetry run meson test -C builddir --suite=stress --num-processes=1 --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
@@ -72,7 +72,7 @@ jobs:
 
     - name: Run tests
       run: |
-              python3 -m poetry run meson test -C builddir --suite=long --suite=smoke --suite=stress --print-errorlogs --no-stdsplit
+              python3 -m poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
