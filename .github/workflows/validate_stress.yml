@@ -1,4 +1,4 @@
-name: Validate builds nightly
+name: Stress builds
 
 on:
   workflow_dispatch:
