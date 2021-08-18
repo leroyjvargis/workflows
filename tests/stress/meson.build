@@ -59,54 +59,7 @@ programs = {
             # },
         },
     },
-    'stress_cursor': {
-        'small_tests': {
-            'create_cursor_small': {
-                'args': '-b 64 -c 5000000 -d 1 -e 10000 -o 2 -v 1024'.split(),
-            },
-            'cursor_with_sync_small': {
-                'args': '-b 64 -c 5000000 -d 5 -e 10000 -o 2 -v 1024'.split(),
-            },
-            'cursor_with_transactions_small': {
-                'args': '-b 64 -c 100000 -d 6 -e 10000 -o 2 -s 10000 -v 1024'.split(),
-            },
-        },
-        'large_tests': {
-            'create_cursor_large': {
-                'args': '-b 64 -c 1000000000 -d 1 -e 20000 -o 100 -v 1024'.split(),
-            },
-        },
-    },
-    'stress_reverse_cursor': {
-        'small_tests': {
-            'reverse_cursor_committed_txn_small': {
-                'args': '-b 64 -c 5000000 -d 2 -n 0 -o 2 -v 1024'.split(),
-            },
-            'reverse_cursor_uncommitted_txn_small': {
-                'args': '-b 64 -c 5000000 -d 2 -n 1 -o 2 -v 1024'.split(),
-            },
-        },
-        'large_tests': {
-            # 'reverse_cursor_committed_txn_large': {
-            #     'args': '-b 64 -c 1000000000 -d 100 -n 0 -o 100 -v 1024'.split(),
-            # },
-            # 'reverse_cursor_uncommitted_txn_large': {
-            #     'args': '-b 64 -c 1000000000 -d 100 -n 1 -o 100 -v 1024'.split(),
-            # },
-        },
-    },
-    'stress_reverse_cursor_unlimited_txn': {
-        'small_tests': {
-            'reverse_cursor_unlimited_txn_small': {
-                'args': '-a 1000 -b 64 -c 5000000 -d 2 -o 2 -v 1024'.split(),
-            },
-        },
-        'large_tests': {
-            # 'reverse_cursor_unlimited_txn_large': {
-            #     'args': '-a 1000 -b 64 -c 1000000000 -d 100 -o 100 -v 1024'.split(),
-            # },
-        },
-    },
+    
 }
 
 foreach p, p_params: programs
