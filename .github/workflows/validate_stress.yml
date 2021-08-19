@@ -35,6 +35,12 @@ jobs:
               # deleting 15GB
               rm -rf /usr/share/dotnet/
               df -h
+
+    - name: Dump info
+      run: |
+              lsblk
+              cat /proc/swaps
+
     - name: Install dependencies
       run: |
               sudo apt-get update
@@ -60,6 +66,6 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-ubuntu
+        name: build-artifact-ubuntu-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
