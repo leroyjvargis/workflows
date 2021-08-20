@@ -38,7 +38,7 @@ jobs:
 
     - name: Dump info
       run: |
-              lsblk
+              lsblk -o NAME,MODEL
               cat /proc/swaps
 
     - name: Install dependencies
