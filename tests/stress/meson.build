@@ -5,10 +5,10 @@ programs = {
                 'args': '-b 64 -c 3000000 -e 0 -i 0 -o 2 -r 0 -s 0 -t 0 -v 1024'.split(),
             },
             'txn_noclose_small': {
-                'args': '-b 64 -c 3750000 -e 0 -i 0 -o 2 -r 0 -s 20 -t 1 -v 1024'.split(),
+                'args': '-b 64 -c 3350000 -e 0 -i 0 -o 2 -r 0 -s 20 -t 1 -v 1024'.split(),
             },
             'disablewal_syncbeforeexit_small': {
-                'args': '-b 64 -c 3750000 -e 0 -i 1 -o 2 -r 1 -s 0 -t 0 -v 1024'.split(),
+                'args': '-b 64 -c 3350000 -e 0 -i 1 -o 2 -r 1 -s 0 -t 0 -v 1024'.split(),
             },
             'txn_disablewal_syncbeforeexit_small': {
                 'args': '-b 64 -c 3750000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 1024'.split(),
@@ -26,10 +26,10 @@ programs = {
                 'args': '-b 8 -c 7499250 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 16'.split(),
             },
             'txn_noclose_1k2k_noclose_small': {
-                'args': '-b 64 -c 3000000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
+                'args': '-b 64 -c 2750000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
             },
             'txn_noclose_1k2k_disablewal_syncbeforeexit_small': {
-                'args': '-b 64 -c 3000000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
+                'args': '-b 64 -c 2750000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
             },
             'multikvs_noclose_small': {
                 'args': '-b 64 -c 600000 -e 0 -i 0 -o 2 -r 0 -s 64 -t 4 -v 1024'.split(),
@@ -61,9 +61,9 @@ programs = {
     },
     'stress_cursor': {
         'small_tests': {
-            'create_cursor_small': {
-                'args': '-b 64 -c 3350000 -d 1 -e 10000 -o 2 -v 1024'.split(),
-            },
+            # 'create_cursor_small': {
+            #     'args': '-b 64 -c 3350000 -d 1 -e 10000 -o 2 -v 1024'.split(),
+            # },
             'cursor_with_sync_small': {
                 'args': '-b 64 -c 3750000 -d 5 -e 10000 -o 2 -v 1024'.split(),
             },
@@ -98,7 +98,7 @@ programs = {
     'stress_reverse_cursor_unlimited_txn': {
         'small_tests': {
             'reverse_cursor_unlimited_txn_small': {
-                'args': '-a 1000 -b 64 -c 3350000 -d 2 -o 2 -v 1024'.split(),
+                'args': '-a 1000 -b 64 -c 3000000 -d 2 -o 2 -v 1024'.split(),
             },
         },
         'large_tests': {
