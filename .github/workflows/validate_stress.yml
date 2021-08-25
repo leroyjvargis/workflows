@@ -61,7 +61,7 @@ jobs:
 
     - name: Run tests
       run: |
-              poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
+              poetry run meson test -C builddir cursor_with_transactions_small --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
