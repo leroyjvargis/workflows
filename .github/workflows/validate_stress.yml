@@ -41,12 +41,21 @@ jobs:
       run: |
               poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
 
-    - name: View logs
+    - name: list var-log
       run: |
               ls -al /var/log/
-              ls -al /var/log/journal
+
+    - name: list var-log-journal
+      run: |
+              sudo ls -al /var/log/journal
+            
+    - name: list tmp
+      run: |
               ls -al /tmp
-              cat /var/log/syslog
+
+    - name: cat syslog
+      run: |
+              sudo cat /var/log/syslog
 
     - uses: actions/upload-artifact@v2
       # if: failure()
