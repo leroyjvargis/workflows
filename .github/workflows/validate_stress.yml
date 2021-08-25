@@ -61,13 +61,13 @@ jobs:
 
     - name: Run tests
       run: |
-              poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
+              # poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
+              ls -al /var/log/
 
     - uses: actions/upload-artifact@v2
-      if: failure()
+      # if: failure()
       with:
         name: build-artifact-ubuntu-${{ matrix.build_type }}
         path: |
                 builddir/meson-logs/
                 /var/log/messages
-
