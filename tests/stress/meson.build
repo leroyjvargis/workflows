@@ -2,10 +2,10 @@ programs = {
     'stress_wal': {
         'small_tests': {
             'noclose_small': {
-                'args': '-b 64 -c 250000 -e 0 -i 0 -o 2 -r 0 -s 0 -t 0 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -e 0 -i 0 -o 2 -r 0 -s 0 -t 0 -v 1024'.split(),
             },
             'txn_noclose_small': {
-                'args': '-b 64 -c 250000 -e 0 -i 0 -o 2 -r 0 -s 20 -t 1 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -e 0 -i 0 -o 2 -r 0 -s 20 -t 1 -v 1024'.split(),
             },
             'disablewal_syncbeforeexit_small': {
                 'args': '-b 64 -c 500000 -e 0 -i 1 -o 2 -r 1 -s 0 -t 0 -v 1024'.split(),
@@ -14,28 +14,28 @@ programs = {
                 'args': '-b 64 -c 500000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 1024'.split(),
             },
             'interleave_aborted_txns_noclose_small': {
-                'args': '-b 64 -c 250000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 2 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 2 -v 1024'.split(),
             },
             'interleave_aborted_txns_disablewal_syncbeforeexit_small': {
                 'args': '-b 64 -c 500000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 2 -v 1024'.split(),
             },
             'txn_noclose_tinyrecords_noclose_small': {
-                'args': '-b 8 -c 250000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 1 -v 16'.split(),
+                'args': '-b 8 -c 50000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 1 -v 16'.split(),
             },
             'txn_noclose_tinyrecords_disablewal_syncbeforeexit_small': {
                 'args': '-b 8 -c 500000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 16'.split(),
             },
             'txn_noclose_1k2k_noclose_small': {
-                'args': '-b 64 -c 250000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
+                'args': '-b 64 -c 50000 -e 0 -i 0 -o 2 -r 0 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
             },
             'txn_noclose_1k2k_disablewal_syncbeforeexit_small': {
                 'args': '-b 64 -c 500000 -e 0 -i 1 -o 2 -r 1 -s 16 -t 1 -v 2048 -p 64 -q 1024'.split(),
             },
             'multikvs_noclose_small': {
-                'args': '-b 64 -c 250000 -e 0 -i 0 -o 2 -r 0 -s 64 -t 4 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -e 0 -i 0 -o 2 -r 0 -s 64 -t 4 -v 1024'.split(),
             },
             'multikvs_disablewal_syncbeforeexit_small': {
-                'args': '-b 64 -c 500000 -e 0 -i 1 -o 2 -r 1 -s 64 -t 4 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -e 0 -i 1 -o 2 -r 1 -s 64 -t 4 -v 1024'.split(),
             },
         },
         'large_tests': {
@@ -65,10 +65,10 @@ programs = {
             #     'args': '-b 64 -c 500000 -d 1 -e 10000 -o 2 -v 1024'.split(),
             # },
             'cursor_with_sync_small': {
-                'args': '-b 64 -c 500000 -d 5 -e 10000 -o 2 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -d 5 -e 10000 -o 2 -v 1024'.split(),
             },
             'cursor_with_transactions_small': {
-                'args': '-b 64 -c 500000 -d 6 -e 10000 -o 2 -s 10000 -v 1024'.split(),
+                'args': '-b 64 -c 50000 -d 6 -e 10000 -o 2 -s 10000 -v 1024'.split(),
             },
         },
         'large_tests': {
