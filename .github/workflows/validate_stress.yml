@@ -69,5 +69,5 @@ jobs:
         name: build-artifact-ubuntu-${{ matrix.build_type }}
         path: |
                 builddir/meson-logs/
-                /var/log/messages
+                /var/log/syslog
 
