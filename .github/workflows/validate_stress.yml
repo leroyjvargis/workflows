@@ -42,11 +42,6 @@ jobs:
       run: |
               poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
 
-              ls -al /var/log/
-              sudo ls -al /var/log/journal
-              ls -al /tmp
-              sudo cat /var/log/syslog
-
     - name: list var-log
       run: |
               ls -al /var/log/
@@ -69,4 +64,4 @@ jobs:
         name: build-artifact-ubuntu-${{ matrix.build_type }}
         path: |
                 builddir/meson-logs/
-                /var/log/messages
+                /var/log/syslog
