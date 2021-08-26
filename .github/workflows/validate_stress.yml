@@ -57,7 +57,6 @@ jobs:
     - name: Create tests-dir
       run: |
               sudo mkdir -p /mnt/hse-tests
-              sudo echo "HSE_TEST_RUNNER_DIR=/mnt/hse-tests" >> /etc/environment
 
     - name: Build setup with YCSB, tools and configs
       run: |
@@ -67,6 +66,8 @@ jobs:
     - name: Run tests
       run: |
               sudo python3 -m poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
+      env:
+        HSE_TEST_RUNNER_DIR: /mnt/hse-tests
 
     - uses: actions/upload-artifact@v2
       if: failure()
