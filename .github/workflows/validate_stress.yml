@@ -57,7 +57,7 @@ jobs:
     - name: Create tests-dir
       run: |
               sudo mkdir -p /mnt/hse-tests
-              export HSE_TEST_RUNNER_DIR="/mnt/hse-tests"
+              sudo echo "HSE_TEST_RUNNER_DIR=/mnt/hse-tests" >> /etc/environment
 
     - name: Build setup with YCSB, tools and configs
       run: |
