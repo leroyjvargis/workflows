@@ -54,14 +54,18 @@ jobs:
       run: |
               poetry install
 
+    - name: Create tests-dir
+      run: |
+              sudo mkdir -p /mnt/hse-tests
+
     - name: Build setup with YCSB, tools and configs
       run: |
               sed -i.bak "s,ssh://git@bitbucket.micron.com/hse/hse-python.git,https://${{ secrets.GH_TOKEN }}@github.com/bhaveshvasandani/hse-python.git,g" subprojects/hse-python.wrap
-              poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwrap_mode=forcefallback
+              sudo poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwrap_mode=forcefallback -Dtests-dir=/mnt/hse-tests
 
     - name: Run tests
       run: |
-              poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
+              sudo poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
