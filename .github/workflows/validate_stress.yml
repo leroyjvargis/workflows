@@ -38,6 +38,7 @@ jobs:
               poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwrap_mode=forcefallback
 
     - name: Run tests
+      continue-on-error: true
       run: |
               poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
 
