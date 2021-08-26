@@ -11,7 +11,9 @@ jobs:
             matrix:
                     os: [ubuntu-18.04]
                     build_type: [release, debugoptimized]
-
+    env:
+            HSE_TEST_RUNNER_DIR: /mnt/hse-tests
+    
     steps:
     - name: Free space
       run: |
@@ -66,8 +68,6 @@ jobs:
     - name: Run tests
       run: |
               sudo python3 -m poetry run meson test -C builddir --suite=stress --print-errorlogs --no-stdsplit
-      env:
-        HSE_TEST_RUNNER_DIR: /mnt/hse-tests
 
     - uses: actions/upload-artifact@v2
       if: failure()
